@@ -60,6 +60,7 @@ permisos ni red:
 | `changelog_test.dart` | el historial de novedades está ordenado y completo |
 | `presets_test.dart` | curvas del ecualizador, colores de acento y modos de tema |
 | `search_test.dart` | texto buscable de una canción y coincidencias del buscador |
+| `library_watcher_test.dart` | cuándo un cambio de estado de la app amerita revisar la biblioteca |
 
 **Lo que no está cubierto** y hay que probar a mano en un teléfono:
 reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de

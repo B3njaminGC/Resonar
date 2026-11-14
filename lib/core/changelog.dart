@@ -29,6 +29,18 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 60,
+      title: 'Se terminaron los tirones al abrir el teclado',
+      fixes: [
+        'Abrir el teclado o recibir una notificación le saca el foco a la '
+            'app un instante, y eso disparaba una revisión completa de las '
+            'carpetas como si hubieras vuelto de otra app. Ahora solo se '
+            'revisa cuando la app estuvo de verdad en segundo plano.',
+        'Revisar qué archivos cambiaron bloqueaba la app: se consultaba el '
+            'disco de a una canción por vez y sin soltar el hilo principal.',
+      ],
+    ),
+    ChangelogEntry(
       build: 59,
       title: 'La música ya no se corta con las notificaciones',
       fixes: [

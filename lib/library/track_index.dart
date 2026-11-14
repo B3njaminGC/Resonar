@@ -133,6 +133,9 @@ class TrackIndex extends ChangeNotifier {
 
   static const int _batchSize = 40;
 
+  /// Cuántos `stat` se piden a la vez al revisar qué archivos cambiaron.
+  static const int _statBatchSize = 64;
+
   /// Versión del formato del archivo de caché (súbela si cambia cómo se leen
   /// las etiquetas, para descartar lo guardado).
   static const int _cacheVersion = 3;
@@ -313,14 +316,30 @@ class TrackIndex extends ChangeNotifier {
     // está en la caché con la misma fecha de modificación no se vuelve a leer.
     final valid = <String>[];
     final stale = <String>[];
-    for (final path in paths) {
-      final stat = FileStat.statSync(path);
-      if (stat.type == FileSystemEntityType.notFound) continue;
-      valid.add(path);
-      final cached = _cache[path];
-      if (cached == null ||
-          cached.modified != stat.modified.millisecondsSinceEpoch) {
-        stale.add(path);
+    // Los `stat` van asíncronos y en tandas. Antes se usaba `statSync`, que
+    // bloquea el isolate principal una vez por canción: el almacenamiento de
+    // Android pasa por FUSE y cada consulta puede tardar milisegundos, así que
+    // con una biblioteca grande la app se congelaba unos segundos **cada vez
+    // que volvías a ella** (y volver incluye que el teclado o una notificación
+    // le saquen el foco un momento). Así el trabajo lo hace el pool de E/S y
+    // el isolate principal queda libre.
+    for (var start = 0; start < paths.length; start += _statBatchSize) {
+      final chunk = paths.sublist(
+        start,
+        math.min(start + _statBatchSize, paths.length),
+      );
+      final stats = await Future.wait(chunk.map(FileStat.stat));
+      if (generation != _generation) return; // llegó una lista más nueva
+      for (var i = 0; i < chunk.length; i++) {
+        final stat = stats[i];
+        if (stat.type == FileSystemEntityType.notFound) continue;
+        final path = chunk[i];
+        valid.add(path);
+        final cached = _cache[path];
+        if (cached == null ||
+            cached.modified != stat.modified.millisecondsSinceEpoch) {
+          stale.add(path);
+        }
       }
     }
     _readTotal = stale.length;

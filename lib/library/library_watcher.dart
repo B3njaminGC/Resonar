@@ -5,6 +5,29 @@ import 'package:flutter/widgets.dart';
 import '../core/app_settings.dart';
 import 'library_repository.dart';
 
+/// Qué hacer ante un cambio de estado de la app.
+///
+/// Android avisa de dos cosas distintas con la misma familia de eventos: que
+/// la app se fue a segundo plano (`paused`) y que perdió el foco sin irse
+/// (`inactive`), que es lo que pasa cuando se abre el teclado o aparece una
+/// notificación arriba. Solo lo primero significa "volvió a la app" y amerita
+/// revisar si hay canciones nuevas.
+///
+/// Devuelve el nuevo valor de [wasInBackground] y si corresponde revisar.
+({bool wasInBackground, bool check}) lifecycleDecision(
+  AppLifecycleState state, {
+  required bool wasInBackground,
+}) {
+  if (state == AppLifecycleState.paused ||
+      state == AppLifecycleState.detached) {
+    return (wasInBackground: true, check: false);
+  }
+  if (state != AppLifecycleState.resumed || !wasInBackground) {
+    return (wasInBackground: wasInBackground, check: false);
+  }
+  return (wasInBackground: false, check: true);
+}
+
 /// Busca canciones nuevas sin que haya que pedirlo.
 ///
 /// Revisa al volver a la app (el caso típico: descargaste algo en otra app y
@@ -22,6 +45,10 @@ class LibraryWatcher with WidgetsBindingObserver {
   bool _running = false;
   DateTime _last = DateTime.fromMillisecondsSinceEpoch(0);
 
+  /// `true` si la app estuvo de verdad en segundo plano desde la última
+  /// revisión.
+  bool _wasInBackground = false;
+
   void start() {
     WidgetsBinding.instance.addObserver(this);
     _timer ??= Timer.periodic(
@@ -35,7 +62,12 @@ class LibraryWatcher with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(check());
+    final decision = lifecycleDecision(
+      state,
+      wasInBackground: _wasInBackground,
+    );
+    _wasInBackground = decision.wasInBackground;
+    if (decision.check) unawaited(check());
   }
 
   /// Revisa las carpetas. [force] saltea la espera mínima entre revisiones.

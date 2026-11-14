@@ -10,6 +10,16 @@ versión de la app.
 ## [No publicado]
 
 ### Corregido
+- Abrir el teclado o recibir una notificación le quita el foco a la app sin
+  mandarla a segundo plano, y eso disparaba una revisión completa de las
+  carpetas. Ahora se distingue perder el foco de volver de otra app.
+- La revisión de qué archivos cambiaron usaba `FileStat.statSync` una vez por
+  canción en el isolate principal; en el almacenamiento de Android (FUSE) eso
+  congelaba la app varios segundos. Ahora va asíncrona y en tandas de 64.
+
+## [build-59] - 2026-11-14
+
+### Corregido
 - Al entrar una notificación, la música se cortaba del todo hasta que el
   sonido terminaba. La sesión de audio ahora pide explícitamente que Android
   baje el volumen (*ducking*) en vez de avisar para pausar.
