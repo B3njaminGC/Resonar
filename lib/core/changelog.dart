@@ -29,6 +29,16 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 59,
+      title: 'La música ya no se corta con las notificaciones',
+      fixes: [
+        'Cuando entraba una notificación, la música se cortaba por completo '
+            'unos segundos. Ahora baja el volumen un momento y sigue.',
+        'Escribir en el buscador trababa el audio un instante en bibliotecas '
+            'grandes: la búsqueda ahora espera a que sueltes el teclado.',
+      ],
+    ),
+    ChangelogEntry(
       build: 57,
       title: 'El repositorio pasó a llamarse Resonar',
       fixes: [

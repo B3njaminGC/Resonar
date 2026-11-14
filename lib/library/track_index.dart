@@ -21,6 +21,37 @@ String titleFromPath(String path) {
   return name.replaceFirst(RegExp(r'\.[^.]+$'), '');
 }
 
+/// Separador entre los campos buscables de una canción. Es un carácter que no
+/// se puede tipear, así una búsqueda nunca coincide a caballo de dos campos
+/// (que el título termine en "the" y el artista empiece con "beatles" no hace
+/// que aparezca buscando "thebeatles").
+const String searchFieldSeparator = '\u0000';
+
+/// Texto sobre el que busca el buscador: los campos de una canción juntos y en
+/// minúsculas. Se arma una vez por canción al cargar la biblioteca y no en cada
+/// tecla.
+String searchTextOf({
+  required String title,
+  required String fileName,
+  String? artist,
+  String? album,
+  String? genre,
+}) => [
+  title,
+  artist ?? '',
+  album ?? '',
+  genre ?? '',
+  fileName,
+].join(searchFieldSeparator).toLowerCase();
+
+/// `true` si la canción coincide con lo que se tipeó. Una consulta vacía
+/// coincide con todo.
+bool matchesSearch(String searchText, String query) {
+  final needle = query.toLowerCase().trim();
+  if (needle.isEmpty) return true;
+  return searchText.contains(needle);
+}
+
 @immutable
 class TrackInfo {
   const TrackInfo({

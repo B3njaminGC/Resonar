@@ -145,7 +145,55 @@ class AudioService {
   }
 
   StreamSubscription<Duration>? _fadeSubscription;
+  StreamSubscription<AudioInterruptionEvent>? _interruptionSubscription;
+
+  /// Volumen que pide el fundido entre canciones (0 a 1).
+  double _fadeVolume = 1.0;
+
+  /// Cuánto se agacha el volumen mientras otra app hace un sonido corto.
+  double _duckFactor = 1.0;
+
+  /// Último volumen que se le pasó al reproductor.
   double _lastVolume = 1.0;
+
+  static const double _duckedVolume = 0.3;
+
+  /// El volumen final es el del fundido multiplicado por el del agachado, así
+  /// los dos pueden actuar sin pisarse: el fundido corre cada 120 ms y una
+  /// notificación puede llegar justo en el medio.
+  Future<void> _applyVolume() async {
+    final target = (_fadeVolume * _duckFactor).clamp(0.0, 1.0);
+    // Volver exactamente a 1.0 importa: con el umbral solo, quedaría en 0,99.
+    final snapBack = target == 1.0 && _lastVolume != 1.0;
+    if (!snapBack && (target - _lastVolume).abs() <= 0.02) return;
+    _lastVolume = target;
+    try {
+      await _player.setVolume(target);
+    } catch (error) {
+      debugPrint('No se pudo ajustar el volumen: $error');
+    }
+  }
+
+  /// Qué hacer cuando otra app pide el audio.
+  ///
+  /// `duck` es un sonido corto (una notificación, el clic del teclado): se baja
+  /// el volumen y la música sigue. `pause` es una interrupción de verdad (una
+  /// llamada) y de eso se ocupa just_audio, que pausa y reanuda solo; acá nos
+  /// limitamos a dejar el volumen donde estaba.
+  void _onInterruption(AudioInterruptionEvent event) {
+    debugPrint(
+      'Interrupción de audio: '
+      '${event.begin ? 'empieza' : 'termina'} ${event.type}',
+    );
+    if (event.type == AudioInterruptionType.duck) {
+      _duckFactor = event.begin ? _duckedVolume : 1.0;
+    } else if (!event.begin) {
+      _duckFactor = 1.0;
+    } else {
+      return;
+    }
+    unawaited(_applyVolume());
+  }
 
   /// Fundido de entrada y salida de cada canción (según Ajustes). Llamar una
   /// vez al iniciar.
@@ -168,10 +216,9 @@ class AudioService {
               volume = math.min(volume, left.clamp(0.0, 1.0));
             }
           }
-          if ((volume - _lastVolume).abs() > 0.02 ||
-              (volume == 1.0 && _lastVolume != 1.0)) {
-            _lastVolume = volume;
-            unawaited(_player.setVolume(volume));
+          if ((volume - _fadeVolume).abs() > 0.001) {
+            _fadeVolume = volume;
+            unawaited(_applyVolume());
           }
         });
   }
@@ -248,7 +295,33 @@ class AudioService {
   Future<void> _configureAudioSession() async {
     try {
       final session = await AudioSession.instance;
-      await session.configure(const AudioSessionConfiguration.music());
+      // La configuración va explícita y no con `AudioSessionConfiguration
+      // .music()`, porque lo importante acá es `androidWillPauseWhenDucked`:
+      // en false le decimos a Android que, cuando otra app quiere hacer un
+      // sonido corto (una notificación, el clic del teclado), baje nuestro
+      // volumen un momento en vez de avisarnos para que pausemos. Con true
+      // la música se corta por completo y vuelve recién cuando el sonido
+      // termina, que es lo que pasaba.
+      await session.configure(
+        const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.playback,
+          avAudioSessionMode: AVAudioSessionMode.defaultMode,
+          avAudioSessionRouteSharingPolicy:
+              AVAudioSessionRouteSharingPolicy.defaultPolicy,
+          avAudioSessionSetActiveOptions: AVAudioSessionSetActiveOptions.none,
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.music,
+            flags: AndroidAudioFlags.none,
+            usage: AndroidAudioUsage.media,
+          ),
+          androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
+          androidWillPauseWhenDucked: false,
+        ),
+      );
+      await _interruptionSubscription?.cancel();
+      _interruptionSubscription = session.interruptionEventStream.listen(
+        _onInterruption,
+      );
       await _becomingNoisySubscription?.cancel();
       _becomingNoisySubscription = session.becomingNoisyEventStream.listen((_) {
         if (_pauseWhenHeadphonesDisconnected && _player.playing) {

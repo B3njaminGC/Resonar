@@ -7,6 +7,21 @@ aparece en los [releases](https://github.com/B3njaminGC/Resonar/releases)
 y en *Ajustes → Qué hay de nuevo* dentro de la app. Entre paréntesis va la
 versión de la app.
 
+## [No publicado]
+
+### Corregido
+- Al entrar una notificación, la música se cortaba del todo hasta que el
+  sonido terminaba. La sesión de audio ahora pide explícitamente que Android
+  baje el volumen (*ducking*) en vez de avisar para pausar.
+- Escribir en el buscador podía trabar el audio un instante: el texto
+  buscable de cada canción se arma una vez al cargar la biblioteca y el
+  filtrado espera a que el teclado se quede quieto.
+
+## [build-57] - 2026-11-13
+
+### Corregido
+- El aviso de versión nueva apuntaba al nombre viejo del repositorio.
+
 ## [build-55] - 2026-11-11 (1.3.0)
 
 ### Corregido

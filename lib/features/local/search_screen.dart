@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/audio_service.dart';
+import '../../library/genre_store.dart';
 import '../../library/track_index.dart';
 import 'widgets/track_tile.dart';
 import '../../theme/accent.dart';
@@ -16,25 +19,83 @@ class SearchScreen extends StatefulWidget {
 class _SearchScreenState extends State<SearchScreen> {
   final AudioService _audio = AudioService();
   final TrackIndex _index = TrackIndex.instance;
+  final GenreStore _genres = GenreStore.instance;
   final TextEditingController _controller = TextEditingController();
+
+  /// Lo que se busca, ya en minúsculas, una entrada por canción y en el mismo
+  /// orden que [_tracks]. Se arma una sola vez por biblioteca y no en cada
+  /// tecla: antes cada letra recorría todas las canciones llamando cinco veces
+  /// a `toLowerCase` y dos veces al almacén de géneros, y en una biblioteca
+  /// grande eso alcanzaba para que la música se trabara un instante.
+  List<String> _haystack = const [];
+  List<TrackInfo> _tracks = const [];
+
+  /// Resultados visibles. Se recalculan cuando el texto se queda quieto.
+  List<TrackInfo> _results = const [];
+
+  Timer? _debounce;
+
+  static const Duration _typingPause = Duration(milliseconds: 180);
+
+  @override
+  void initState() {
+    super.initState();
+    _rebuildHaystack();
+    _applyQuery();
+    _index.addListener(_onLibraryChanged);
+    _genres.addListener(_onLibraryChanged);
+    _controller.addListener(_onQueryChanged);
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _controller.removeListener(_onQueryChanged);
+    _index.removeListener(_onLibraryChanged);
+    _genres.removeListener(_onLibraryChanged);
     _controller.dispose();
     super.dispose();
   }
 
-  List<TrackInfo> _filter(String rawQuery) {
-    final query = rawQuery.toLowerCase().trim();
-    if (query.isEmpty) return _index.tracks;
-    return [
-      for (final track in _index.tracks)
-        if (track.title.toLowerCase().contains(query) ||
-            (track.artist ?? '').toLowerCase().contains(query) ||
-            (track.album ?? '').toLowerCase().contains(query) ||
-            track.genre.toLowerCase().contains(query) ||
-            titleFromPath(track.path).toLowerCase().contains(query))
-          track,
+  void _onLibraryChanged() {
+    _rebuildHaystack();
+    if (mounted) setState(_applyQuery);
+  }
+
+  void _rebuildHaystack() {
+    final tracks = _index.tracks;
+    _tracks = tracks;
+    _haystack = [
+      for (final track in tracks)
+        searchTextOf(
+          title: track.title,
+          fileName: titleFromPath(track.path),
+          artist: track.artist,
+          album: track.album,
+          genre: track.genre,
+        ),
+    ];
+  }
+
+  /// Mientras la persona escribe no se filtra nada: se espera a que suelte el
+  /// teclado un instante. Así una palabra de ocho letras filtra una vez y no
+  /// ocho.
+  void _onQueryChanged() {
+    _debounce?.cancel();
+    _debounce = Timer(_typingPause, () {
+      if (mounted) setState(_applyQuery);
+    });
+  }
+
+  void _applyQuery() {
+    final query = _controller.text.trim();
+    if (query.isEmpty) {
+      _results = _tracks;
+      return;
+    }
+    _results = [
+      for (var i = 0; i < _tracks.length; i++)
+        if (matchesSearch(_haystack[i], query)) _tracks[i],
     ];
   }
 
@@ -71,29 +132,24 @@ class _SearchScreenState extends State<SearchScreen> {
             ),
           ),
           Expanded(
-            child: ListenableBuilder(
-              listenable: Listenable.merge([_index, _controller]),
-              builder: (context, _) {
-                final results = _filter(_controller.text);
-                if (results.isEmpty) {
-                  return const Center(
+            child: _results.isEmpty
+                ? const Center(
                     child: Text(
                       'No se encontraron canciones con ese criterio.',
                       style: TextStyle(color: Colors.grey),
                     ),
-                  );
-                }
-                final files = [for (final track in results) track.file];
-                return ListView.builder(
-                  itemCount: results.length,
-                  itemExtent: 72,
-                  itemBuilder: (context, i) => TrackTile(
-                    track: results[i],
-                    onTap: () => _audio.setPlaylistAndPlay(files, i),
+                  )
+                : ListView.builder(
+                    itemCount: _results.length,
+                    itemExtent: 72,
+                    itemBuilder: (context, i) => TrackTile(
+                      track: _results[i],
+                      onTap: () => _audio.setPlaylistAndPlay(
+                        [for (final track in _results) track.file],
+                        i,
+                      ),
+                    ),
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),

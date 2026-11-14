@@ -59,11 +59,13 @@ permisos ni red:
 | `track_info_test.dart` | título desde la ruta, textos de respaldo y orden de canciones |
 | `changelog_test.dart` | el historial de novedades está ordenado y completo |
 | `presets_test.dart` | curvas del ecualizador, colores de acento y modos de tema |
+| `search_test.dart` | texto buscable de una canción y coincidencias del buscador |
 
 **Lo que no está cubierto** y hay que probar a mano en un teléfono:
 reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de
 carpetas reales, lectura de etiquetas, ecualizador, Bluetooth y botones de
-auriculares, y la descarga e instalación de actualizaciones.
+auriculares, el foco de audio (qué pasa cuando entra una notificación o una
+llamada), y la descarga e instalación de actualizaciones.
 
 ## Compilar el APK
 
