@@ -15,6 +15,10 @@ import 'artwork_cache.dart';
 import 'equalizer.dart';
 import 'player_handler.dart';
 
+/// Volumen (0 a 1) mientras suena una notificación, a partir del porcentaje
+/// que se baja según Ajustes: 40 % de bajada son 0,6 de volumen.
+double duckFactorFor(int percent) => 1.0 - percent.clamp(0, 100) / 100;
+
 /// Convierte el modo de bucle guardado en Ajustes al del reproductor.
 ///
 /// Se guarda con `LoopMode.name`, así que los nombres tienen que coincidir:
@@ -56,7 +60,13 @@ class AudioService {
 
   // El ecualizador se engancha al crear el reproductor: no se puede añadir
   // después.
+  // `handleInterruptions: false`: las interrupciones las maneja
+  // `_onInterruption` y no just_audio, que para un sonido corto no hace nada y
+  // deja que el volumen lo decida el sistema. Activar la sesión de audio
+  // (pedir el foco al reproducir) lo sigue haciendo just_audio, que es otra
+  // opción distinta y queda encendida.
   final AudioPlayer _player = AudioPlayer(
+    handleInterruptions: false,
     audioPipeline: EqualizerController.instance.buildPipeline(),
   );
   final List<File> _queue = [];
@@ -167,13 +177,8 @@ class AudioService {
   /// Último volumen que se le pasó al reproductor.
   double _lastVolume = 1.0;
 
-  /// Cuánto bajamos el volumen por nuestra cuenta ante un sonido corto.
-  ///
-  /// En 1.0, es decir: nada. Android ya agacha el volumen él mismo (se lo
-  /// pedimos con `androidWillPauseWhenDucked: false`), así que bajarlo también
-  /// acá multiplicaba los dos descuentos y la música quedaba inaudible en vez
-  /// de solo más baja. Queda el mecanismo armado por si alguna vez hace falta.
-  static const double _duckedVolume = 1.0;
+  /// `true` si la pausa actual la pidió una interrupción y no la persona.
+  bool _pausedByInterruption = false;
 
   /// El volumen final es el del fundido multiplicado por el del agachado, así
   /// los dos pueden actuar sin pisarse: el fundido corre cada 120 ms y una
@@ -193,23 +198,40 @@ class AudioService {
 
   /// Qué hacer cuando otra app pide el audio.
   ///
-  /// `duck` es un sonido corto (una notificación, el clic del teclado): se baja
-  /// el volumen y la música sigue. `pause` es una interrupción de verdad (una
-  /// llamada) y de eso se ocupa just_audio, que pausa y reanuda solo; acá nos
-  /// limitamos a dejar el volumen donde estaba.
+  /// Hay dos casos y no se tratan igual:
+  ///
+  /// - `duck`: un sonido corto, típicamente una notificación. La música sigue,
+  ///   más baja, según [AppSettings.duckPercent].
+  /// - `pause` o `unknown`: una interrupción de verdad, como una llamada. Ahí
+  ///   se pausa y se reanuda al terminar, pero solo si la pausa fue nuestra:
+  ///   si la persona ya había pausado, se queda pausado.
   void _onInterruption(AudioInterruptionEvent event) {
     debugPrint(
       'Interrupción de audio: '
       '${event.begin ? 'empieza' : 'termina'} ${event.type}',
     );
     if (event.type == AudioInterruptionType.duck) {
-      _duckFactor = event.begin ? _duckedVolume : 1.0;
-    } else if (!event.begin) {
-      _duckFactor = 1.0;
-    } else {
+      _duckFactor = event.begin
+          ? duckFactorFor(AppSettings.instance.duckPercent)
+          : 1.0;
+      unawaited(_applyVolume());
       return;
     }
+    if (event.begin) {
+      if (_player.playing) {
+        _pausedByInterruption = true;
+        unawaited(_player.pause());
+      }
+      return;
+    }
+    // Terminó la interrupción: el volumen vuelve y, si la pausa la pusimos
+    // nosotros, la música sigue.
+    _duckFactor = 1.0;
     unawaited(_applyVolume());
+    if (_pausedByInterruption) {
+      _pausedByInterruption = false;
+      unawaited(_startPlayback());
+    }
   }
 
   /// Fundido de entrada y salida de cada canción (según Ajustes). Llamar una
@@ -312,13 +334,16 @@ class AudioService {
   Future<void> _configureAudioSession() async {
     try {
       final session = await AudioSession.instance;
-      // La configuración va explícita y no con `AudioSessionConfiguration
-      // .music()`, porque lo importante acá es `androidWillPauseWhenDucked`:
-      // en false le decimos a Android que, cuando otra app quiere hacer un
-      // sonido corto (una notificación, el clic del teclado), baje nuestro
-      // volumen un momento en vez de avisarnos para que pausemos. Con true
-      // la música se corta por completo y vuelve recién cuando el sonido
-      // termina, que es lo que pasaba.
+      // Lo que importa acá es `androidWillPauseWhenDucked`, y va en **true**
+      // por un motivo que no es obvio. Según la documentación de Android, en
+      // false el sistema baja el volumen por su cuenta y *no le avisa a la
+      // app*: el descuento lo elige el teléfono y puede dejar la música
+      // inaudible, sin que haya nada que podamos hacer. En true se desactiva
+      // ese automatismo y Android nos avisa, así que el volumen durante una
+      // notificación lo decidimos nosotros (ver `duckPercent` en Ajustes).
+      //
+      // El precio es que hay que manejar las interrupciones a mano, incluidas
+      // las de verdad (una llamada): eso lo hace `_onInterruption`.
       await session.configure(
         const AudioSessionConfiguration(
           avAudioSessionCategory: AVAudioSessionCategory.playback,
@@ -332,7 +357,7 @@ class AudioService {
             usage: AndroidAudioUsage.media,
           ),
           androidAudioFocusGainType: AndroidAudioFocusGainType.gain,
-          androidWillPauseWhenDucked: false,
+          androidWillPauseWhenDucked: true,
         ),
       );
       await _interruptionSubscription?.cancel();
@@ -719,6 +744,9 @@ class AudioService {
   }
 
   Future<void> playPause() async {
+    // Si la persona toca play o pausa durante una llamada, manda ella: al
+    // colgar no se reanuda nada por las nuestras.
+    _pausedByInterruption = false;
     if (_player.playing) {
       await _player.pause();
       return;
@@ -834,8 +862,15 @@ class AudioService {
     });
   }
 
-  Future<void> pause() => _player.pause();
-  Future<void> resume() => _player.play();
+  Future<void> pause() {
+    _pausedByInterruption = false;
+    return _player.pause();
+  }
+
+  Future<void> resume() {
+    _pausedByInterruption = false;
+    return _player.play();
+  }
   Future<void> stop() => _player.stop();
   Future<void> seek(Duration position) => _player.seek(position);
 }

@@ -48,6 +48,7 @@ le indiques y arma la biblioteca con las etiquetas de cada archivo.
 - Cola editable, aleatorio que mezcla una sola vez, repetición, velocidad de
   0,5× a 2×, fundido entre canciones y temporizador de apagado.
 - Ecualizador propio con bandas, curvas listas y refuerzo de volumen.
+- Elegís cuánto baja la música mientras suena una notificación.
 - Retoma la última canción donde la dejaste.
 
 **Letras**

@@ -29,6 +29,19 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 62,
+      title: 'Vos elegís cuánto baja la música con una notificación',
+      news: [
+        'En Ajustes → Sonido: "Bajar el volumen con notificaciones", de 0 a '
+            '100 %. Por defecto baja un 40 %, así la notificación se escucha '
+            'encima y la música no desaparece.',
+      ],
+      fixes: [
+        'Antes el descuento lo elegía Android por su cuenta y en algunos '
+            'teléfonos dejaba la música inaudible. Ahora lo decide la app.',
+      ],
+    ),
+    ChangelogEntry(
       build: 61,
       title: 'Vuelve donde lo dejaste, y los auriculares se reconocen solos',
       fixes: [

@@ -9,6 +9,23 @@ versión de la app.
 
 ## [No publicado]
 
+### Añadido
+- *Ajustes → Sonido → Bajar el volumen con notificaciones*: cuánto baja la
+  música mientras suena una notificación (0, 20, 40, 60 o 100 %). Por defecto,
+  40 %.
+
+### Cambiado
+- `androidWillPauseWhenDucked` pasa a **true** y la app maneja las
+  interrupciones (`handleInterruptions: false` en el reproductor). En false,
+  la documentación de Android es explícita: el sistema baja el volumen por su
+  cuenta y *no notifica a la app*, así que el descuento lo decidía el teléfono
+  y en algunos modelos dejaba la música inaudible. En true ese automatismo se
+  desactiva, Android avisa y el volumen lo elegimos nosotros. El precio es
+  tener que pausar y reanudar a mano en una interrupción real (una llamada),
+  que es lo que hace `_onInterruption`.
+
+## [build-61] - 2026-11-15
+
 ### Corregido
 - El botón ■ de la notificación llamaba a `clearQueue()`, que además de vaciar
   la cola guardaba una sesión vacía en disco. Como el ■ cierra la app, al

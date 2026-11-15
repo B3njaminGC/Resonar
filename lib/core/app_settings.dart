@@ -58,6 +58,16 @@ class AppSettings {
 
   Future<void> setFadeSeconds(int value) => _box.put('fade_seconds', value);
 
+  /// Cuánto baja el volumen mientras suena una notificación, en porcentaje
+  /// (40 = la música se escucha al 60 %). En 100 queda muda.
+  int get duckPercent {
+    final value = (_box.get('duck_percent') as num?)?.toInt() ?? 40;
+    return value.clamp(0, 100);
+  }
+
+  Future<void> setDuckPercent(int value) =>
+      _box.put('duck_percent', value.clamp(0, 100));
+
   /// Fondo de los widgets: 'dark' | 'light' | 'accent' | 'artwork'.
   String get widgetStyle =>
       (_box.get('widget_style') as String?) ?? 'dark';

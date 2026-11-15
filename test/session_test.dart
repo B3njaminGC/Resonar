@@ -18,4 +18,21 @@ void main() {
       expect(loopModeFromName('bucle'), equals(LoopMode.off));
     });
   });
+
+  group('duckFactorFor', () {
+    test('el porcentaje que se baja da el volumen que queda', () {
+      expect(duckFactorFor(0), equals(1.0));
+      expect(duckFactorFor(40), closeTo(0.6, 0.0001));
+      expect(duckFactorFor(100), equals(0.0));
+    });
+
+    test('nunca se va del rango audible', () {
+      expect(duckFactorFor(-20), equals(1.0));
+      expect(duckFactorFor(500), equals(0.0));
+      for (final percent in [0, 10, 33, 40, 75, 100]) {
+        final factor = duckFactorFor(percent);
+        expect(factor, inInclusiveRange(0.0, 1.0));
+      }
+    });
+  });
 }
