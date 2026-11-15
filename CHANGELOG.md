@@ -10,6 +10,22 @@ versión de la app.
 ## [No publicado]
 
 ### Corregido
+- El botón ■ de la notificación llamaba a `clearQueue()`, que además de vaciar
+  la cola guardaba una sesión vacía en disco. Como el ■ cierra la app, al
+  volver a entrar no había nada que retomar: ni canción, ni aleatorio, ni
+  bucle. Ahora el ■ guarda la posición y no borra la sesión.
+- El aleatorio y el bucle se restauran antes de buscar la cola guardada, así
+  que vuelven como estaban incluso sin cola.
+- `AudioOutputs` solo leía las salidas al iniciar y confiaba en
+  `devicesStream`, que en Android no siempre avisa cuando se conectan unos
+  auriculares bluetooth. Se agregó `refresh()`, que corre en cada botón de
+  auricular y al volver a la app.
+- El agachado de volumen propio se multiplicaba con el de Android y dejaba la
+  música inaudible ante una notificación; ahora lo hace solo el sistema.
+
+## [build-60] - 2026-11-14
+
+### Corregido
 - Abrir el teclado o recibir una notificación le quita el foco a la app sin
   mandarla a segundo plano, y eso disparaba una revisión completa de las
   carpetas. Ahora se distingue perder el foco de volver de otra app.

@@ -132,6 +132,9 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
     var pressed = button;
+    // Se relee la salida en el momento del botonazo: si los auriculares se
+    // conectaron con la app abierta, la lista guardada puede estar vieja.
+    await AudioOutputs.instance.refresh();
     if (AudioOutputs.instance.shouldSwapButtons) {
       pressed = switch (button) {
         MediaButton.next => MediaButton.previous,

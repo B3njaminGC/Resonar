@@ -28,6 +28,21 @@ class AudioOutputs {
     }
   }
 
+  /// Vuelve a preguntarle a Android por dónde sale el audio.
+  ///
+  /// `devicesStream` no siempre avisa cuando se conectan unos auriculares
+  /// bluetooth, y entonces la lista quedaba como estaba al abrir la app: por
+  /// eso había que entrar a Ajustes a mano para que la inversión de botones se
+  /// activara. Preguntar de nuevo cuesta una llamada y saca la duda.
+  Future<void> refresh() async {
+    try {
+      final session = await AudioSession.instance;
+      _apply(await session.getDevices(includeInputs: false));
+    } catch (error) {
+      debugPrint('No se pudieron releer las salidas de audio: $error');
+    }
+  }
+
   void _apply(Set<AudioDevice> devices) {
     outputs.value = [
       for (final device in devices)

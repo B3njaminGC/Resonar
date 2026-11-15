@@ -29,6 +29,22 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 61,
+      title: 'Vuelve donde lo dejaste, y los auriculares se reconocen solos',
+      fixes: [
+        'El ■ de la notificación borraba la sesión antes de cerrar la app: al '
+            'volver a entrar no estaba la última canción, ni el aleatorio, ni '
+            'el bucle. Ahora se guarda en qué canción y en qué segundo quedó.',
+        'El aleatorio y el bucle vuelven como los dejaste aunque no haya cola '
+            'para retomar.',
+        'La inversión de botones no se activaba al conectar los auriculares '
+            'con la app ya abierta: Android no siempre avisa. Ahora la salida '
+            'se vuelve a leer en cada botonazo y al volver a la app.',
+        'Una notificación dejaba la música inaudible: Android ya baja el '
+            'volumen solo y la app lo bajaba otra vez encima.',
+      ],
+    ),
+    ChangelogEntry(
       build: 60,
       title: 'Se terminaron los tirones al abrir el teclado',
       fixes: [

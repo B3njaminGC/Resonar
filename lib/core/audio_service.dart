@@ -15,6 +15,16 @@ import 'artwork_cache.dart';
 import 'equalizer.dart';
 import 'player_handler.dart';
 
+/// Convierte el modo de bucle guardado en Ajustes al del reproductor.
+///
+/// Se guarda con `LoopMode.name`, así que los nombres tienen que coincidir:
+/// un cambio en el paquete dejaría el bucle siempre apagado sin avisar.
+LoopMode loopModeFromName(String? name) => switch (name) {
+  'all' => LoopMode.all,
+  'one' => LoopMode.one,
+  _ => LoopMode.off,
+};
+
 /// Reproductor de música local (solo archivos del dispositivo).
 ///
 /// Es un singleton: todas las pantallas comparten cola, estado y notifiers.
@@ -121,7 +131,8 @@ class AudioService {
         player: _player,
         onNext: playNext,
         onPrevious: playPrevious,
-        onStop: clearQueue,
+        // El ■ cierra la app, pero no se olvida de dónde quedó.
+        onStop: () => clearQueue(forgetSession: false),
         currentPath: () => currentFile?.path,
       ),
       config: media.AudioServiceConfig(
@@ -156,7 +167,13 @@ class AudioService {
   /// Último volumen que se le pasó al reproductor.
   double _lastVolume = 1.0;
 
-  static const double _duckedVolume = 0.3;
+  /// Cuánto bajamos el volumen por nuestra cuenta ante un sonido corto.
+  ///
+  /// En 1.0, es decir: nada. Android ya agacha el volumen él mismo (se lo
+  /// pedimos con `androidWillPauseWhenDucked: false`), así que bajarlo también
+  /// acá multiplicaba los dos descuentos y la música quedaba inaudible en vez
+  /// de solo más baja. Queda el mecanismo armado por si alguna vez hace falta.
+  static const double _duckedVolume = 1.0;
 
   /// El volumen final es el del fundido multiplicado por el del agachado, así
   /// los dos pueden actuar sin pisarse: el fundido corre cada 120 ms y una
@@ -387,6 +404,18 @@ class AudioService {
     if (_queue.isNotEmpty) return;
     try {
       final settings = AppSettings.instance;
+      // El aleatorio y el bucle se restauran primero y pase lo que pase: son
+      // preferencias y no dependen de que haya una cola para retomar. Antes
+      // estaban después del `return` de abajo, así que una cola vacía los
+      // dejaba apagados.
+      shuffleNotifier.value = settings.shuffleOn;
+      _orderBeforeShuffle = settings.shuffleOn
+          ? [for (final path in settings.queueBeforeShuffle) File(path)]
+          : null;
+      final loop = loopModeFromName(settings.loopMode);
+      loopNotifier.value = loop;
+      await _player.setLoopMode(loop);
+
       final paths = settings.lastQueue;
       if (paths.isEmpty) return;
       final files = [
@@ -394,18 +423,6 @@ class AudioService {
           if (File(path).existsSync()) File(path),
       ];
       if (files.isEmpty) return;
-      // El aleatorio y el bucle quedan como los dejaste. La cola guardada
-      // ya está mezclada, así que solo hay que volver a encender la opción.
-      shuffleNotifier.value = settings.shuffleOn;
-      _orderBeforeShuffle = settings.shuffleOn
-          ? [for (final path in settings.queueBeforeShuffle) File(path)]
-          : null;
-      final loop = switch (settings.loopMode) {
-        'all' => LoopMode.all,
-        'one' => LoopMode.one,
-        _ => LoopMode.off,
-      };
-      loopNotifier.value = loop;
 
       final savedIndex = settings.lastIndex;
       final savedPath = savedIndex >= 0 && savedIndex < paths.length
@@ -578,7 +595,22 @@ class AudioService {
     }
   }
 
-  Future<void> clearQueue() async {
+  /// Vacía la cola.
+  ///
+  /// [forgetSession] borra además la sesión guardada en disco. El botón ■ de
+  /// la notificación pasa `false`: cierra la app, pero la próxima vez tiene
+  /// que retomar donde quedó. Borrarla ahí era lo que hacía que al volver a
+  /// entrar la app apareciera como recién instalada, sin canción, sin
+  /// aleatorio y sin bucle.
+  Future<void> clearQueue({bool forgetSession = true}) async {
+    if (!forgetSession && _queue.isNotEmpty) {
+      // Antes de vaciar: dejar anotado en qué canción y en qué segundo quedó.
+      await AppSettings.instance.saveSession(
+        queue: [for (final file in _queue) file.path],
+        index: _currentIndex,
+        positionMs: _player.position.inMilliseconds,
+      );
+    }
     _queueId++;
     _queue.clear();
     _source = null;
@@ -589,7 +621,15 @@ class AudioService {
     albumNotifier.value = null;
     artworkBytesNotifier.value = null;
     _handler?.clearItem();
-    unawaited(AppSettings.instance.saveSession(queue: <String>[], index: 0, positionMs: 0));
+    if (forgetSession) {
+      unawaited(
+        AppSettings.instance.saveSession(
+          queue: <String>[],
+          index: 0,
+          positionMs: 0,
+        ),
+      );
+    }
     await _player.stop();
   }
 

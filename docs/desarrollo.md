@@ -61,6 +61,7 @@ permisos ni red:
 | `presets_test.dart` | curvas del ecualizador, colores de acento y modos de tema |
 | `search_test.dart` | texto buscable de una canción y coincidencias del buscador |
 | `library_watcher_test.dart` | cuándo un cambio de estado de la app amerita revisar la biblioteca |
+| `session_test.dart` | el modo de bucle guardado se lee igual que se escribió |
 
 **Lo que no está cubierto** y hay que probar a mano en un teléfono:
 reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de

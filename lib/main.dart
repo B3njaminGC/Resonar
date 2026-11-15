@@ -195,6 +195,8 @@ class _MainContainerState extends State<MainContainer>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && !_showOnboarding) {
       unawaited(_runWidgetAction());
+      // Por si conectaste unos auriculares mientras la app no estaba adelante.
+      unawaited(AudioOutputs.instance.refresh());
     }
   }
 
