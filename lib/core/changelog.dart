@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 67,
+      title: 'Reordenar sin mantener apretado',
+      fixes: [
+        'Para mover una canción en la cola o en una lista ya no hay que '
+            'mantener apretado: se arrastra desde las rayitas y arranca al '
+            'toque. La zona del dedo sobre las rayitas también es más grande.',
+      ],
+    ),
+    ChangelogEntry(
       build: 66,
       title: 'Play desde el auricular con la app cerrada',
       fixes: [

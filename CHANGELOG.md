@@ -9,6 +9,18 @@ versión de la app.
 
 ## [No publicado]
 
+### Cambiado (reordenar)
+- La cola y las listas pasan a `buildDefaultDragHandles: false` con un
+  `ReorderableDragStartListener` en el icono de las rayitas. El arrastre por
+  defecto de Flutter agarra toda la fila pero exige mantener apretado; el
+  listener explícito arranca en cuanto el dedo se mueve. En la cola el icono
+  era decorativo y el arrastre real era el de toda la fila. Se agregó relleno
+  alrededor del icono para que el blanco no sea solo las rayitas.
+- En las listas esto además saca el conflicto entre el arrastre por defecto y
+  el mantener apretado para seleccionar.
+
+## [build-66] - 2026-11-16
+
 ### Corregido (play desde afuera)
 - `PlayerHandler.play()` llamaba a `AudioPlayer.play()` directo y se salteaba
   `AudioService`. Ahora pasa por `resume()`, que retoma la última sesión si la

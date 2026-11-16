@@ -237,6 +237,9 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               builder: (context, selection) => ReorderableListView.builder(
                 itemCount: songs.length,
                 onReorderItem: _reorderTracks,
+                // Solo las rayitas arrastran. Acá además evita que el arrastre
+                // por defecto pelee con el mantener apretado para seleccionar.
+                buildDefaultDragHandles: false,
                 itemBuilder: (context, index) {
                   final file = songs[index];
                   final info =
@@ -309,8 +312,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                                 ReorderableDragStartListener(
                                   index: index,
                                   child: const Padding(
+                                    // Zona de agarre: las rayitas solas son un
+                                    // blanco chico para un dedo.
                                     padding: EdgeInsets.symmetric(
-                                      horizontal: 4,
+                                      horizontal: 10,
+                                      vertical: 14,
                                     ),
                                     child: Icon(Icons.drag_handle),
                                   ),

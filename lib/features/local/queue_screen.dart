@@ -54,6 +54,10 @@ class _Queue extends StatelessWidget {
         final list = ReorderableListView.builder(
           itemCount: files.length,
           onReorderItem: audio.reorderQueue,
+          // Sin esto, Flutter arrastra desde cualquier parte de la fila pero
+          // exige mantener apretado. Se arrastra solo desde las rayitas, y
+          // desde ahí al toque (ver `ReorderableDragStartListener` abajo).
+          buildDefaultDragHandles: false,
           itemBuilder: (context, index) {
             final file = files[index];
             final info =
@@ -116,7 +120,15 @@ class _Queue extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                trailing: const Icon(Icons.drag_handle),
+                // Arrastra en cuanto el dedo se mueve, sin esperar. El relleno
+                // es zona de agarre: las rayitas solas son un blanco chico.
+                trailing: ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+                    child: Icon(Icons.drag_handle),
+                  ),
+                ),
                 onTap: () => audio.seekToQueueIndex(index),
               ),
             );
