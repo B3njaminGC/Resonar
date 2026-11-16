@@ -19,6 +19,7 @@ import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
 import 'support_screen.dart';
 import '../theme/accent.dart';
+import '../theme/notice.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -49,9 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   void _snack(String text, {SnackBarAction? action}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text), action: action));
+    showNotice(context, text, action: action);
   }
 
   Future<void> _setPauseOnHeadphoneDisconnect(bool value) async {

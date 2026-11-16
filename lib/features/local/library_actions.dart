@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../library/library_repository.dart';
+import '../../theme/notice.dart';
 
 /// "Buscar música en el dispositivo" con mensajes de resultado.
 /// Solo usa el `ScaffoldMessenger` capturado antes del `await`.
 Future<void> scanDeviceMusicWithFeedback(BuildContext context) async {
   final messenger = ScaffoldMessenger.of(context);
-  void say(String text, {SnackBarAction? action}) => messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(text), action: action));
+  void say(String text, {SnackBarAction? action}) =>
+      showNoticeOn(messenger, text, action: action);
 
   say('Buscando música…');
   try {

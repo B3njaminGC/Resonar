@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 63,
+      title: 'Avisos más chicos y más cortos',
+      fixes: [
+        'Los carteles de confirmación ("se agregó a la lista") ocupaban media '
+            'pantalla y tardaban en irse. Ahora son una pastilla chica que '
+            'dura un segundo y medio, y los textos son más cortos.',
+      ],
+    ),
+    ChangelogEntry(
       build: 62,
       title: 'Vos elegís cuánto baja la música con una notificación',
       news: [

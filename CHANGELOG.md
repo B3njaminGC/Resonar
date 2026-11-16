@@ -9,6 +9,16 @@ versión de la app.
 
 ## [No publicado]
 
+### Cambiado (avisos)
+- Los avisos de confirmación pasan a ser una pastilla flotante chica (13 px,
+  esquinas redondeadas) de 1,6 segundos, en vez de la barra ancha de Material
+  de 4 segundos. El estilo vive en `snackBarTheme` y la duración en
+  `showNotice`/`showNoticeOn` (`lib/theme/notice.dart`), por donde pasan ahora
+  los 22 avisos de la app. Los que tienen botón siguen durando 4 segundos,
+  porque hay que llegar a tocarlo.
+- Textos de confirmación más cortos, y "añadir" pasa a "agregar" para
+  emparejar con el resto de la app.
+
 ### Añadido
 - *Ajustes → Sonido → Bajar el volumen con notificaciones*: cuánto baja la
   música mientras suena una notificación (0, 20, 40, 60 o 100 %). Por defecto,

@@ -28,6 +28,7 @@ import 'screens/changelog_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/support_screen.dart';
 import 'theme/accent.dart';
+import 'theme/notice.dart';
 import 'theme/theme_controller.dart';
 import 'update/update_prompt.dart';
 
@@ -108,9 +109,8 @@ class _LocalMusicAppState extends State<LocalMusicApp> {
   void _onPlaybackError() {
     final message = _audio.playbackErrorNotifier.value;
     if (message == null) return;
-    _messengerKey.currentState
-      ?..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    final messenger = _messengerKey.currentState;
+    if (messenger != null) showNoticeOn(messenger, message);
   }
 
   /// Interruptor rápido del menú: alterna entre claro y oscuro.
@@ -178,17 +178,10 @@ class _MainContainerState extends State<MainContainer>
     final count = LibraryWatcher.instance.foundSongs.value;
     if (count <= 0 || !mounted) return;
     LibraryWatcher.instance.foundSongs.value = 0;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            count == 1
-                ? 'Se agregó 1 canción nueva.'
-                : 'Se agregaron $count canciones nuevas.',
-          ),
-        ),
-      );
+    showNotice(
+      context,
+      count == 1 ? '1 canción nueva' : '$count canciones nuevas',
+    );
   }
 
   @override

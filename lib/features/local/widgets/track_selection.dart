@@ -8,6 +8,7 @@ import '../../../library/track_index.dart';
 import '../genre_dialogs.dart';
 import '../playlist_dialogs.dart';
 import '../../../theme/accent.dart';
+import '../../../theme/notice.dart';
 
 /// Canciones marcadas en una lista (selección múltiple).
 class TrackSelection extends ChangeNotifier {
@@ -134,9 +135,7 @@ class _SelectionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final audio = AudioService();
     final messenger = ScaffoldMessenger.of(context);
-    void say(String text) => messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    void say(String text) => showNoticeOn(messenger, text);
 
     Future<void> play() async {
       final files = _files();

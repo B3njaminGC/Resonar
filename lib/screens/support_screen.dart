@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../core/donation_config.dart';
 import '../theme/accent.dart';
+import '../theme/notice.dart';
 
 /// "Colaborá con el proyecto": alias y link de Mercado Pago.
 class SupportScreen extends StatelessWidget {
@@ -17,9 +18,7 @@ class SupportScreen extends StatelessWidget {
     await Clipboard.setData(
       const ClipboardData(text: DonationConfig.mercadoPagoAlias),
     );
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(content: Text('Alias copiado. ¡Gracias!')));
+    showNoticeOn(messenger, 'Alias copiado. ¡Gracias!');
   }
 
   Future<void> _openLink(BuildContext context) async {
@@ -34,11 +33,7 @@ class SupportScreen extends StatelessWidget {
       }
     }
     if (!opened) {
-      messenger
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          const SnackBar(content: Text('No se pudo abrir el link de pago.')),
-        );
+      showNoticeOn(messenger, 'No se pudo abrir el link de pago');
     }
   }
 

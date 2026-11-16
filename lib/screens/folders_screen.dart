@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../core/app_settings.dart';
 import '../library/library_repository.dart';
 import '../theme/accent.dart';
+import '../theme/notice.dart';
 
 /// Carpetas de música: las que se escanean y las que se ignoran.
 class FoldersScreen extends StatefulWidget {
@@ -23,9 +24,7 @@ class _FoldersScreenState extends State<FoldersScreen> {
 
   void _snack(String text, {SnackBarAction? action}) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text), action: action));
+    showNotice(context, text, action: action);
   }
 
   Future<void> _run(Future<int> Function() operation) async {

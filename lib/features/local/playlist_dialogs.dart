@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'playlist_service.dart';
 import '../../theme/accent.dart';
+import '../../theme/notice.dart';
 
 /// Diálogos de listas de reproducción offline.
 ///
@@ -30,9 +31,7 @@ Future<void> showCreatePlaylistDialog(BuildContext context) async {
     builder: (_) => _CreatePlaylistDialog(onCreate: PlaylistService().createPlaylist),
   );
   if (name != null) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('Lista "$name" creada.')));
+    showNoticeOn(messenger, 'Lista "$name" creada.');
   }
 }
 
@@ -54,9 +53,7 @@ Future<String?> showRenamePlaylistDialog(
     ),
   );
   if (newName != null && newName != name) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('Lista renombrada a "$newName".')));
+    showNoticeOn(messenger, 'Lista renombrada a "$newName".');
   }
   return newName;
 }
@@ -186,17 +183,12 @@ Future<void> showAddSongsToPlaylistDialog(
     builder: (_) => _AddToPlaylistSheet(songs: songs),
   );
   if (listName != null) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            songs.length == 1
-                ? 'Añadida a "$listName".'
-                : 'Añadidas ${songs.length} canciones a "$listName".',
-          ),
-        ),
-      );
+    showNoticeOn(
+      messenger,
+      songs.length == 1
+          ? 'Agregada a "$listName"'
+          : '${songs.length} canciones en "$listName"',
+    );
   }
 }
 

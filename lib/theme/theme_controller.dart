@@ -77,8 +77,32 @@ class AppThemeController extends ChangeNotifier {
         surfaceTintColor: Colors.transparent,
         elevation: 2,
       ),
+      snackBarTheme: _snackBarTheme(
+        background: const Color(0xFF2B2B2B),
+        foreground: Colors.white,
+      ),
     );
   }
+
+  /// Avisos chicos y flotantes, no la barra ancha de Material.
+  ///
+  /// Un aviso es una confirmación ("listo, se agregó"), no algo que haya que
+  /// leer: ocupa lo que mide su texto, se queda cerca del borde de abajo y se
+  /// va solo. La duración va en `showNotice`, porque el tema no la define.
+  static SnackBarThemeData _snackBarTheme({
+    required Color background,
+    required Color foreground,
+  }) => SnackBarThemeData(
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: background,
+    contentTextStyle: TextStyle(color: foreground, fontSize: 13),
+    elevation: 3,
+    insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.all(Radius.circular(22)),
+    ),
+    actionTextColor: Colors.white,
+  );
 
   ThemeData dark() {
     final amoled = _mode == 'amoled';
@@ -103,6 +127,10 @@ class AppThemeController extends ChangeNotifier {
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
+      ),
+      snackBarTheme: _snackBarTheme(
+        background: amoled ? const Color(0xFF1A1A1A) : const Color(0xFF2E2E2E),
+        foreground: Colors.white,
       ),
     );
   }

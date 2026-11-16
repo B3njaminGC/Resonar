@@ -13,6 +13,7 @@ import '../library/favorites_repository.dart';
 import '../lyrics/lyrics_panel.dart';
 import '../theme/art_palette.dart';
 import '../theme/accent.dart';
+import '../theme/notice.dart';
 
 class NowPlayingScreen extends StatefulWidget {
   const NowPlayingScreen({super.key, this.showBack = false});
@@ -82,9 +83,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
   Future<void> _addToPlaylist() async {
     final file = _audio.currentFile;
     if (file == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay una canción seleccionada.')),
-      );
+      showNotice(context, 'No hay canción seleccionada');
       return;
     }
     await showAddToPlaylistDialog(context, file);

@@ -10,6 +10,7 @@ import '../../../library/track_source.dart';
 import '../genre_dialogs.dart';
 import '../playlist_dialogs.dart';
 import '../../../theme/accent.dart';
+import '../../../theme/notice.dart';
 
 /// Fila de canción: carátula, título, artista y menú de acciones.
 class TrackTile extends StatelessWidget {
@@ -86,9 +87,7 @@ class TrackMenuButton extends StatelessWidget {
   Future<void> _handle(BuildContext context, _TrackAction action) async {
     final messenger = ScaffoldMessenger.of(context);
     final audio = AudioService();
-    void say(String text) => messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    void say(String text) => showNoticeOn(messenger, text);
 
     switch (action) {
       case _TrackAction.play:

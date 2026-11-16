@@ -11,6 +11,7 @@ import 'genre_dialogs.dart';
 import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
 import '../../theme/accent.dart';
+import '../../theme/notice.dart';
 
 enum _GenreMenu { edit, delete }
 
@@ -68,17 +69,10 @@ class _GenreScreenState extends State<GenreScreen> {
       ),
     );
     if (added == null || added == 0) return;
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            added == 1
-                ? 'Se agregó 1 canción a "$_name".'
-                : 'Se agregaron $added canciones a "$_name".',
-          ),
-        ),
-      );
+    showNoticeOn(
+      messenger,
+      added == 1 ? 'Agregada a "$_name"' : '$added canciones en "$_name"',
+    );
   }
 
   @override
@@ -248,9 +242,7 @@ class _GenrePickerScreenState extends State<GenrePickerScreen> {
     } catch (error) {
       if (!mounted) return;
       setState(() => _busy = false);
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('No se pudo guardar: $error')));
+      showNotice(context, 'No se pudo guardar: $error');
     }
   }
 

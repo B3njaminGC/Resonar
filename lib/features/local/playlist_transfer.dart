@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import '../../library/m3u.dart';
 import '../../library/track_index.dart';
 import 'playlist_service.dart';
+import '../../theme/notice.dart';
 
 String _errorText(Object error) {
   if (error is ArgumentError) return '${error.message}';
@@ -31,9 +32,7 @@ Future<void> exportPlaylistAsM3u(
   List<String> paths,
 ) async {
   final messenger = ScaffoldMessenger.of(context);
-  void say(String text) => messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(text)));
+  void say(String text) => showNoticeOn(messenger, text);
 
   final existing = [for (final path in paths) if (File(path).existsSync()) path];
   if (existing.isEmpty) {
@@ -74,9 +73,7 @@ String _uniqueName(String base, List<String> taken) {
 /// este dispositivo (por ruta o, si no, por nombre de archivo).
 Future<void> importM3uPlaylist(BuildContext context) async {
   final messenger = ScaffoldMessenger.of(context);
-  void say(String text) => messenger
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(text)));
+  void say(String text) => showNoticeOn(messenger, text);
 
   try {
     final picked = await FilePicker.pickFile(
@@ -134,9 +131,7 @@ Future<void> showSaveQueueAsPlaylistDialog(
     builder: (_) => _SaveQueueDialog(files: files),
   );
   if (name != null) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('Lista "$name" guardada.')));
+    showNoticeOn(messenger, 'Lista "$name" guardada.');
   }
 }
 

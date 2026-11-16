@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../../library/genre_store.dart';
 import '../../library/track_index.dart';
+import '../../theme/notice.dart';
 
 String _errorText(Object error) {
   if (error is ArgumentError) return '${error.message}';
@@ -27,9 +28,7 @@ Future<void> showSongsGenreDialog(
     builder: (_) => _SongGenreDialog(songs: songs),
   );
   if (message != null) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(message)));
+    showNoticeOn(messenger, message);
   }
 }
 
@@ -218,15 +217,10 @@ Future<String?> showGenreFormDialog(
     builder: (_) => _GenreFormDialog(edit: edit),
   );
   if (name != null) {
-    messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            edit == null ? 'Género "$name" creado.' : 'Género actualizado.',
-          ),
-        ),
-      );
+    showNoticeOn(
+      messenger,
+      edit == null ? 'Género "$name" creado' : 'Género actualizado',
+    );
   }
   return name;
 }

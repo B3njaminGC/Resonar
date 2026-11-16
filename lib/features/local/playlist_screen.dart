@@ -14,6 +14,7 @@ import 'playlist_service.dart';
 import 'playlist_transfer.dart';
 import 'smart_lists.dart';
 import 'widgets/track_selection.dart';
+import '../../theme/notice.dart';
 
 class PlaylistLibraryScreen extends StatelessWidget {
   const PlaylistLibraryScreen({super.key});
@@ -150,17 +151,12 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
       await _playlistService.removeTrack(_name, path);
     }
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            removed.length == 1
-                ? 'Se quitó de la lista.'
-                : 'Se quitaron ${removed.length} de la lista.',
-          ),
-        ),
-      );
+    showNotice(
+      context,
+      removed.length == 1
+          ? 'Se quitó de la lista'
+          : 'Se quitaron ${removed.length}',
+    );
   }
 
   /// Mueve una canción al principio o al final de la lista.
@@ -359,9 +355,7 @@ class _SongMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final favorites = FavoritesRepository.instance;
     final messenger = ScaffoldMessenger.of(context);
-    void say(String text) => messenger
-      ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text(text)));
+    void say(String text) => showNoticeOn(messenger, text);
 
     return PopupMenuButton<String>(
       tooltip: 'Opciones de la canción',
