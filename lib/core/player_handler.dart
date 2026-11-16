@@ -21,11 +21,13 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
     required Future<void> Function() onNext,
     required Future<void> Function() onPrevious,
     required Future<void> Function() onStop,
+    required Future<void> Function() onPlay,
     required String? Function() currentPath,
   }) : _player = player,
        _onNext = onNext,
        _onPrevious = onPrevious,
        _onStop = onStop,
+       _onPlay = onPlay,
        _currentPath = currentPath {
     _player.playbackEventStream.listen(
       (_) => _broadcast(),
@@ -42,6 +44,7 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   final Future<void> Function() _onNext;
   final Future<void> Function() _onPrevious;
   final Future<void> Function() _onStop;
+  final Future<void> Function() _onPlay;
   final String? Function() _currentPath;
 
   static const String _toggleFavorite = 'toggleFavorite';
@@ -117,7 +120,11 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   // `_player.play()` termina recién al pausar: no se espera.
   @override
   Future<void> play() async {
-    unawaited(_player.play());
+    // Pasa por AudioService y no por el reproductor pelado: si la app la
+    // resucitó el sistema (un botón del auricular con la app cerrada) la cola
+    // puede estar todavía vacía, y ahí hay que retomar la sesión antes de
+    // darle play a la nada.
+    unawaited(_onPlay());
   }
 
   @override

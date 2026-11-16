@@ -174,6 +174,7 @@ class AudioService {
         onPrevious: playPrevious,
         // El ■ cierra la app, pero no se olvida de dónde quedó.
         onStop: () => clearQueue(forgetSession: false),
+        onPlay: resume,
         currentPath: () => currentFile?.path,
       ),
       config: media.AudioServiceConfig(
@@ -868,7 +869,7 @@ class AudioService {
       await _player.pause();
       return;
     }
-    await _startPlayback();
+    await resume();
   }
 
   Future<void> playNext() async {
@@ -1038,10 +1039,19 @@ class AudioService {
     return _player.pause();
   }
 
-  Future<void> resume() {
+  /// Darle play desde cualquier lado: la notificación, el botón del auricular,
+  /// el widget o la pantalla.
+  ///
+  /// Si la cola está vacía se retoma la última sesión antes de reproducir.
+  /// Importa cuando el sistema resucitó la app (un botón del auricular con la
+  /// app cerrada): `main` también retoma la sesión, pero lo hace sin esperar,
+  /// así que el play puede llegar antes y encontrarse con la nada.
+  Future<void> resume() async {
     _pausedByInterruption = false;
-    return _player.play();
+    if (_queue.isEmpty) await restoreLastSession();
+    await _startPlayback();
   }
+
   Future<void> stop() => _player.stop();
   Future<void> seek(Duration position) => _player.seek(position);
 }

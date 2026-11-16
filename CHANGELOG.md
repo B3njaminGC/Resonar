@@ -9,6 +9,26 @@ versión de la app.
 
 ## [No publicado]
 
+### Corregido (play desde afuera)
+- `PlayerHandler.play()` llamaba a `AudioPlayer.play()` directo y se salteaba
+  `AudioService`. Ahora pasa por `resume()`, que retoma la última sesión si la
+  cola está vacía. Importa cuando el sistema resucita la app por un botón
+  multimedia con la app cerrada: `main` también retoma la sesión, pero sin
+  esperar, así que el play podía llegar primero y encontrarse con la nada.
+
+### Nota sobre reproducir al conectar con la app cerrada
+Arrancar la música cuando se conectan unos auriculares **con el proceso
+muerto** no se puede hacer con un receptor de Bluetooth: la lista de
+excepciones de Android para arrancar un servicio en primer plano desde el
+fondo no incluye los avisos de Bluetooth, así que el servicio sería
+rechazado. La única vía permitida es asociar el dispositivo con el Companion
+Device Manager y declarar
+`REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND`, lo que implica
+pantalla de asociación, permiso nuevo y código nativo. Queda sin hacer.
+Mientras tanto funciona el camino que sí permite Android: si el auricular
+manda un comando de play al conectarse, el sistema despierta la app por
+`MediaButtonReceiver` (ya registrado) y la reproducción retoma.
+
 ### Añadido (auriculares)
 - *Ajustes → Sonido → Reproducir al conectar auriculares* (por defecto
   encendido, por simetría con el pausar al desconectar). Si la cola está

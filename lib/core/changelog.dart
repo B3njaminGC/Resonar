@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 66,
+      title: 'Play desde el auricular con la app cerrada',
+      fixes: [
+        'Si el sistema despierta la app por un botón del auricular, el play '
+            'ahora retoma lo último que escuchabas. Antes podía llegar antes '
+            'de que la cola estuviera cargada y no sonaba nada.',
+      ],
+    ),
+    ChangelogEntry(
       build: 65,
       title: 'La notificación ya no hace un pozo en la música',
       news: [
