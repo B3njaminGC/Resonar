@@ -43,11 +43,24 @@ class AudioOutputs {
     }
   }
 
+  /// Se llama cuando se enchufa o se conecta una salida que antes no estaba.
+  ///
+  /// No se dispara al abrir la app con los auriculares ya puestos: solo en el
+  /// momento de conectarlos, que es cuando la persona hizo algo.
+  void Function()? onConnected;
+
+  bool _seenOnce = false;
+
   void _apply(Set<AudioDevice> devices) {
-    outputs.value = [
+    final next = [
       for (final device in devices)
         if (device.isOutput && !_isBuiltIn(device)) device,
     ];
+    final before = {for (final device in outputs.value) device.name};
+    final appeared = next.any((device) => !before.contains(device.name));
+    outputs.value = next;
+    if (appeared && _seenOnce) onConnected?.call();
+    _seenOnce = true;
   }
 
   /// El parlante o el auricular del teléfono: no son un accesorio.

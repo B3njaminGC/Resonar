@@ -9,6 +9,25 @@ versión de la app.
 
 ## [No publicado]
 
+### Añadido (auriculares)
+- *Ajustes → Sonido → Reproducir al conectar auriculares* (por defecto
+  encendido, por simetría con el pausar al desconectar). Si la cola está
+  vacía, retoma la última sesión antes de sonar. No se dispara al abrir la app
+  con los auriculares ya puestos, solo al conectarlos; y no arranca si la
+  persona pausó a mano en el último minuto, porque la lista de salidas se
+  relee seguido y un parpadeo del bluetooth no tiene que leerse como una
+  conexión.
+
+### Cambiado (notificaciones)
+- El bajón de volumen ahora es una rampa de 250 ms al bajar y 450 ms al
+  volver, en vez de un escalón: lo que se nota de una notificación no es
+  cuánto baja sino el corte seco.
+- El valor por defecto pasa de 40 % a 20 %, y las opciones ahora son 0, 10,
+  20, 40 y 100 %.
+- Si no llega el aviso de fin de interrupción, el volumen vuelve igual a los
+  seis segundos; y darle a play lo devuelve siempre, sin depender de ningún
+  aviso.
+
 ### Corregido (reproducción)
 - `toggleShuffle` llamaba a `setPlaylistAndPlay`, que rehace la
   `ConcatenatingAudioSource` con `setAudioSource` y obliga a recargar la pista

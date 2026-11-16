@@ -59,14 +59,26 @@ class AppSettings {
   Future<void> setFadeSeconds(int value) => _box.put('fade_seconds', value);
 
   /// Cuánto baja el volumen mientras suena una notificación, en porcentaje
-  /// (40 = la música se escucha al 60 %). En 100 queda muda.
+  /// (20 = la música se escucha al 80 %). En 100 queda muda.
+  ///
+  /// Por defecto 20: lo justo para que la notificación se destaque. Más que
+  /// eso se siente como un pozo, incluso con la bajada hecha de a poco.
   int get duckPercent {
-    final value = (_box.get('duck_percent') as num?)?.toInt() ?? 40;
+    final value = (_box.get('duck_percent') as num?)?.toInt() ?? 20;
     return value.clamp(0, 100);
   }
 
   Future<void> setDuckPercent(int value) =>
       _box.put('duck_percent', value.clamp(0, 100));
+
+  /// Empezar a sonar solo al conectar unos auriculares o un parlante.
+  /// Va en true por simetría con [pauseOnHeadphoneDisconnect]: si sacarse los
+  /// auriculares pausa, ponérselos reanuda.
+  bool get playOnHeadphoneConnect =>
+      _box.get('play_on_connect', defaultValue: true) == true;
+
+  Future<void> setPlayOnHeadphoneConnect(bool value) =>
+      _box.put('play_on_connect', value);
 
   /// Fondo de los widgets: 'dark' | 'light' | 'accent' | 'artwork'.
   String get widgetStyle =>

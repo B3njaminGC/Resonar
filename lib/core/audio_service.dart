@@ -211,20 +211,92 @@ class AudioService {
   /// `true` si la pausa actual la pidió una interrupción y no la persona.
   bool _pausedByInterruption = false;
 
+  Timer? _duckTimer;
+  Timer? _duckRamp;
+
+  /// Cuándo pausó la persona por última vez, y cuándo arrancó solo el
+  /// reproductor al conectarse una salida.
+  DateTime _lastManualPause = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastAutoPlay = DateTime.fromMillisecondsSinceEpoch(0);
+
+  /// Lo máximo que la música puede quedar baja por una notificación.
+  ///
+  /// Red de seguridad, no el mecanismo normal: el volumen vuelve cuando
+  /// Android avisa que terminó la interrupción. Pero si ese aviso no llega
+  /// —y hay teléfonos en los que no llega— la música quedaba baja para
+  /// siempre, sin forma de recuperarla salvo reiniciando la app. Una
+  /// notificación nunca dura tanto, así que a los seis segundos se vuelve
+  /// igual.
+  static const Duration _maxDuckDuration = Duration(seconds: 6);
+
   /// El volumen final es el del fundido multiplicado por el del agachado, así
   /// los dos pueden actuar sin pisarse: el fundido corre cada 120 ms y una
   /// notificación puede llegar justo en el medio.
-  Future<void> _applyVolume() async {
+  /// Baja o sube el volumen de a poco en vez de un salto.
+  ///
+  /// Lo que molesta de una notificación no es cuánto baja sino **el escalón**:
+  /// un corte seco se oye como un pozo en la ruta, y la misma bajada hecha en
+  /// un cuarto de segundo casi no se nota. Vuelve más lento de lo que baja,
+  /// que es como suena natural.
+  void _rampDuckTo(double target) {
+    _duckRamp?.cancel();
+    const step = Duration(milliseconds: 25);
+    final over = target < _duckFactor
+        ? const Duration(milliseconds: 250) // bajar
+        : const Duration(milliseconds: 450); // volver
+    final steps = (over.inMilliseconds / step.inMilliseconds).round();
+    final from = _duckFactor;
+    var done = 0;
+    _duckRamp = Timer.periodic(step, (timer) {
+      done++;
+      final progress = (done / steps).clamp(0.0, 1.0);
+      _duckFactor = from + (target - from) * progress;
+      unawaited(_applyVolume(force: true));
+      if (progress >= 1.0) {
+        timer.cancel();
+        _duckRamp = null;
+      }
+    });
+  }
+
+  Future<void> _applyVolume({bool force = false}) async {
     final target = (_fadeVolume * _duckFactor).clamp(0.0, 1.0);
     // Volver exactamente a 1.0 importa: con el umbral solo, quedaría en 0,99.
     final snapBack = target == 1.0 && _lastVolume != 1.0;
-    if (!snapBack && (target - _lastVolume).abs() <= 0.02) return;
+    // Durante una rampa los pasos son chicos a propósito y el umbral los
+    // comería, así que ahí se aplica siempre.
+    if (!force && !snapBack && (target - _lastVolume).abs() <= 0.02) return;
     _lastVolume = target;
     try {
       await _player.setVolume(target);
     } catch (error) {
       debugPrint('No se pudo ajustar el volumen: $error');
     }
+  }
+
+  /// Empieza a sonar al conectar unos auriculares o un parlante.
+  ///
+  /// Si no hay nada en la cola intenta retomar la última sesión, porque el
+  /// caso típico es salir de casa: te ponés los auriculares y querés que suene
+  /// lo último que escuchabas, sin tener que abrir la app y elegir.
+  Future<void> onOutputConnected() async {
+    if (!AppSettings.instance.playOnHeadphoneConnect) return;
+    if (_player.playing) return;
+    final now = DateTime.now();
+    // Si acabás de pausar a mano, mandás vos. La lista de salidas se relee en
+    // cada botón y al volver a la app, así que un parpadeo del bluetooth
+    // podría leerse como "se conectó algo" justo después de que pausaste: sin
+    // esto, la música te arrancaría sola y parecería que la app hace lo que
+    // quiere.
+    if (now.difference(_lastManualPause) < const Duration(seconds: 60)) return;
+    // Y no dos veces seguidas por el mismo parpadeo.
+    if (now.difference(_lastAutoPlay) < const Duration(seconds: 30)) return;
+    _lastAutoPlay = now;
+    if (_queue.isEmpty) {
+      await restoreLastSession();
+      if (_queue.isEmpty) return; // no hay nada que retomar
+    }
+    await _startPlayback();
   }
 
   /// Qué hacer cuando otra app pide el audio.
@@ -242,10 +314,16 @@ class AudioService {
       '${event.begin ? 'empieza' : 'termina'} ${event.type}',
     );
     if (event.type == AudioInterruptionType.duck) {
-      _duckFactor = event.begin
-          ? duckFactorFor(AppSettings.instance.duckPercent)
-          : 1.0;
-      unawaited(_applyVolume());
+      _duckTimer?.cancel();
+      _rampDuckTo(
+        event.begin ? duckFactorFor(AppSettings.instance.duckPercent) : 1.0,
+      );
+      if (event.begin) {
+        _duckTimer = Timer(_maxDuckDuration, () {
+          debugPrint('No llegó el fin de la interrupción: vuelvo el volumen.');
+          _rampDuckTo(1.0);
+        });
+      }
       return;
     }
     if (event.begin) {
@@ -257,8 +335,8 @@ class AudioService {
     }
     // Terminó la interrupción: el volumen vuelve y, si la pausa la pusimos
     // nosotros, la música sigue.
-    _duckFactor = 1.0;
-    unawaited(_applyVolume());
+    _duckTimer?.cancel();
+    _rampDuckTo(1.0);
     if (_pausedByInterruption) {
       _pausedByInterruption = false;
       unawaited(_startPlayback());
@@ -744,6 +822,13 @@ class AudioService {
   }
 
   Future<void> _startPlayback() async {
+    // Darle a play devuelve el volumen a donde corresponde, sin depender de
+    // que haya llegado ningún aviso: si algo quedó a medias, esto lo salva.
+    _duckTimer?.cancel();
+    _duckRamp?.cancel();
+    _duckFactor = 1.0;
+    if (AppSettings.instance.fadeSeconds == 0) _fadeVolume = 1.0;
+    unawaited(_applyVolume(force: true));
     unawaited(_raiseVolumeIfMuted());
     try {
       await _player.play();
@@ -779,6 +864,7 @@ class AudioService {
     // colgar no se reanuda nada por las nuestras.
     _pausedByInterruption = false;
     if (_player.playing) {
+      _lastManualPause = DateTime.now();
       await _player.pause();
       return;
     }
@@ -948,6 +1034,7 @@ class AudioService {
 
   Future<void> pause() {
     _pausedByInterruption = false;
+    _lastManualPause = DateTime.now();
     return _player.pause();
   }
 

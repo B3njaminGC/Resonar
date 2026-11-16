@@ -22,6 +22,7 @@ void main() {
   group('duckFactorFor', () {
     test('el porcentaje que se baja da el volumen que queda', () {
       expect(duckFactorFor(0), equals(1.0));
+      expect(duckFactorFor(20), closeTo(0.8, 0.0001));
       expect(duckFactorFor(40), closeTo(0.6, 0.0001));
       expect(duckFactorFor(100), equals(0.0));
     });

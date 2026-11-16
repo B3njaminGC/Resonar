@@ -65,6 +65,8 @@ Future<void> main() async {
   AudioService().startEndWatchdog();
   AudioService().startVolumeWatch();
   LibraryWatcher.instance.start();
+  AudioOutputs.instance.onConnected = () =>
+      unawaited(AudioService().onOutputConnected());
   unawaited(AudioOutputs.instance.start());
   WidgetBridge.attach(AudioService());
 

@@ -44,6 +44,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _raiseVolume = _settings.raiseVolumeOnPlay;
   late int _fadeSeconds = _settings.fadeSeconds;
   late int _duckPercent = _settings.duckPercent;
+  late bool _playOnConnect = _settings.playOnHeadphoneConnect;
   late bool _dynamicColors = _settings.dynamicColors;
   bool _checkingUpdate = false;
   bool _scanning = false;
@@ -414,7 +415,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         Wrap(
                           spacing: 8,
                           children: [
-                            for (final percent in const [0, 20, 40, 60, 100])
+                            for (final percent in const [0, 10, 20, 40, 100])
                               ChoiceChip(
                                 label: Text(
                                   percent == 0 ? 'No bajar' : '−$percent %',
@@ -430,6 +431,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+                ),
+                SwitchListTile(
+                  secondary: Icon(Icons.play_circle, color: context.accent),
+                  title: const Text('Reproducir al conectar auriculares'),
+                  subtitle: const Text(
+                    'Al conectar auriculares o un parlante, sigue lo último '
+                    'que estabas escuchando.',
+                  ),
+                  value: _playOnConnect,
+                  onChanged: (value) {
+                    _settings.setPlayOnHeadphoneConnect(value);
+                    setState(() => _playOnConnect = value);
+                  },
                 ),
                 SwitchListTile(
                   secondary: Icon(

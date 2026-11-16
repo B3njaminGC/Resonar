@@ -29,6 +29,20 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 65,
+      title: 'La notificación ya no hace un pozo en la música',
+      news: [
+        'La música arranca sola al conectar auriculares o un parlante, y '
+            'sigue lo último que estabas escuchando aunque hayas cerrado la '
+            'app. Se puede apagar en Ajustes → Sonido.',
+      ],
+      fixes: [
+        'Cuando entra una notificación, el volumen ahora baja y vuelve de a '
+            'poco en vez de pegar un salto. Y baja menos: 20 % en lugar de '
+            '40 %. Si preferís que no baje nada, está la opción "No bajar".',
+      ],
+    ),
+    ChangelogEntry(
       build: 64,
       title: 'Cambiar a aleatorio ya no corta la música',
       fixes: [
