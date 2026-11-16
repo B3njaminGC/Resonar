@@ -15,6 +15,31 @@ import 'artwork_cache.dart';
 import 'equalizer.dart';
 import 'player_handler.dart';
 
+/// Si esta lectura parece un reproductor trabado al final de la pista.
+///
+/// Existe porque hay archivos (sobre todo bajados) que se clavan en el último
+/// segundo en vez de terminar, y la cola se quedaba muda. Pero saltar de más
+/// es peor que no saltar: cortaría una canción que estaba sonando bien. Por
+/// eso pide que se cumpla todo a la vez, y aun así el vigilante espera dos
+/// lecturas seguidas antes de hacer nada.
+///
+/// En particular, si el reproductor está cargando ([ProcessingState.buffering]
+/// y compañía) que la posición no avance es normal y no cuenta como trabado.
+bool looksStuckAtEnd({
+  required bool playing,
+  required ProcessingState state,
+  required Duration? duration,
+  required Duration position,
+  required Duration lastPosition,
+}) {
+  if (!playing || state != ProcessingState.ready) return false;
+  if (duration == null || duration <= Duration.zero) return false;
+  final moved =
+      (position - lastPosition).abs() > const Duration(milliseconds: 400);
+  if (moved) return false;
+  return duration - position <= const Duration(seconds: 2);
+}
+
 /// Volumen (0 a 1) mientras suena una notificación, a partir del porcentaje
 /// que se baja según Ajustes: 40 % de bajada son 0,6 de volumen.
 double duckFactorFor(int percent) => 1.0 - percent.clamp(0, 100) / 100;
@@ -74,6 +99,12 @@ class AudioService {
   int _currentIndex = 0;
   int _queueId = 0;
   int _consecutiveErrors = 0;
+
+  // Los vigilantes se arrancan una sola vez: engancharlos dos veces dejaría
+  // dos temporizadores y dos oyentes compitiendo sobre el mismo reproductor.
+  bool _fadeStarted = false;
+  bool _watchdogStarted = false;
+  bool _volumeWatchStarted = false;
   bool _pauseWhenHeadphonesDisconnected = true;
   StreamSubscription<void>? _becomingNoisySubscription;
   Timer? _sleepTimer;
@@ -237,6 +268,8 @@ class AudioService {
   /// Fundido de entrada y salida de cada canción (según Ajustes). Llamar una
   /// vez al iniciar.
   void startFade() {
+    if (_fadeStarted) return;
+    _fadeStarted = true;
     _fadeSubscription?.cancel();
     _fadeSubscription = _player
         .createPositionStream(
@@ -269,25 +302,22 @@ class AudioService {
   /// último segundo (pasa con archivos cuya duración está mal escrita, típico
   /// de descargas) pasa solo a la siguiente en vez de quedarse mudo.
   void startEndWatchdog() {
+    if (_watchdogStarted) return;
+    _watchdogStarted = true;
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) unawaited(_onQueueFinished());
     });
     Timer.periodic(const Duration(seconds: 2), (_) {
-      if (!_player.playing) {
-        _stuckTicks = 0;
-        return;
-      }
-      final duration = _player.duration;
       final position = _player.position;
-      if (duration == null || duration <= Duration.zero) {
-        _stuckTicks = 0;
-        return;
-      }
-      final moved =
-          (position - _lastWatchPosition).abs() >
-          const Duration(milliseconds: 400);
+      final previous = _lastWatchPosition;
       _lastWatchPosition = position;
-      if (duration - position > const Duration(seconds: 2) || moved) {
+      if (!looksStuckAtEnd(
+        playing: _player.playing,
+        state: _player.processingState,
+        duration: _player.duration,
+        position: position,
+        lastPosition: previous,
+      )) {
         _stuckTicks = 0;
         return;
       }
@@ -702,7 +732,8 @@ class AudioService {
 
   /// Escucha el aviso de Android de que el volumen quedó en cero y pausa.
   void startVolumeWatch() {
-    if (!Platform.isAndroid) return;
+    if (_volumeWatchStarted || !Platform.isAndroid) return;
+    _volumeWatchStarted = true;
     const MethodChannel('resonar/audio').setMethodCallHandler((call) async {
       if (call.method != 'musicVolumeZero') return null;
       if (AppSettings.instance.pauseOnZeroVolume && _player.playing) {
@@ -818,16 +849,69 @@ class AudioService {
         ];
       }
     }
-    final index = current == null
+    final found = current == null
         ? 0
         : next.indexWhere((file) => file.path == current.path);
-    await setPlaylistAndPlay(
-      next,
-      index < 0 ? 0 : index,
-      position: _player.position,
-      autoplay: _player.playing,
-    );
+    final index = found < 0 ? 0 : found;
+    if (!await _reorderInPlace(next, index)) {
+      // Sin nada cargado no hay nada que conservar: se arma de cero.
+      await setPlaylistAndPlay(
+        next,
+        index,
+        position: _player.position,
+        autoplay: _player.playing,
+      );
+    }
     await _persistShuffle();
+  }
+
+  /// Reordena la cola **sin cortar lo que está sonando**.
+  ///
+  /// Rearmar la fuente con `setAudioSource` obliga al reproductor a recargar
+  /// la pista actual, y eso es el segundo de silencio que se oía al tocar el
+  /// aleatorio. En vez de eso se saca todo lo que está antes y después de la
+  /// pista actual y se vuelve a insertar en el orden nuevo: la que suena nunca
+  /// se toca, así que no se entera. Son cuatro operaciones, no importa si la
+  /// cola tiene diez canciones o dos mil.
+  ///
+  /// Devuelve `false` si no había nada cargado y hay que armar la cola de
+  /// cero.
+  Future<bool> _reorderInPlace(List<File> next, int index) async {
+    final source = _source;
+    final playing = _player.currentIndex;
+    if (source == null || playing == null || _queue.isEmpty) return false;
+    final queueId = _queueId;
+    try {
+      // 1) Dejar en la fuente solo la pista que suena.
+      if (playing + 1 < source.length) {
+        await source.removeRange(playing + 1, source.length);
+      }
+      if (playing > 0) await source.removeRange(0, playing);
+      if (queueId != _queueId) return true;
+      // 2) Rodearla con el orden nuevo.
+      if (index > 0) {
+        await source.insertAll(0, [
+          for (final file in next.take(index)) _sourceFor(file),
+        ]);
+      }
+      if (index + 1 < next.length) {
+        await source.addAll([
+          for (final file in next.skip(index + 1)) _sourceFor(file),
+        ]);
+      }
+      if (queueId != _queueId) return true;
+      _queue
+        ..clear()
+        ..addAll(next);
+      _currentIndex = index;
+      queueNotifier.value = List<File>.unmodifiable(_queue);
+      _publishCurrent();
+      _persistQueue();
+      return true;
+    } catch (error) {
+      debugPrint('No se pudo reordenar la cola en el lugar: $error');
+      return false;
+    }
   }
 
   Future<void> toggleLoop() async {

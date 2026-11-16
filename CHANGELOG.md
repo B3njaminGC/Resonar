@@ -9,6 +9,21 @@ versión de la app.
 
 ## [No publicado]
 
+### Corregido (reproducción)
+- `toggleShuffle` llamaba a `setPlaylistAndPlay`, que rehace la
+  `ConcatenatingAudioSource` con `setAudioSource` y obliga a recargar la pista
+  actual: ese era el segundo de silencio. Ahora `_reorderInPlace` saca lo que
+  está antes y después de la pista que suena y lo reinserta en el orden nuevo
+  (cuatro operaciones, no importa el tamaño de la cola); la pista actual no se
+  toca.
+- El vigilante de fin de pista ya no cuenta como "trabado" una lectura en la
+  que el reproductor está cargando: `buffering` cerca del final podía
+  disparar un `seekToNext` y saltear una canción sana. La condición vive en
+  `looksStuckAtEnd`, con pruebas.
+- `startFade`, `startEndWatchdog` y `startVolumeWatch` son idempotentes: dos
+  llamadas dejaban dos temporizadores y dos oyentes sobre el mismo
+  reproductor.
+
 ### Cambiado (avisos)
 - Los avisos de confirmación pasan a ser una pastilla flotante chica (13 px,
   esquinas redondeadas) de 1,6 segundos, en vez de la barra ancha de Material

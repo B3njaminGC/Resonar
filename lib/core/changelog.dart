@@ -29,6 +29,18 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 64,
+      title: 'Cambiar a aleatorio ya no corta la música',
+      fixes: [
+        'Activar o desactivar el aleatorio callaba la música un segundo: se '
+            'rearmaba la cola entera y la canción se recargaba. Ahora se '
+            'reordena alrededor de la que suena, sin tocarla.',
+        'El reproductor ya no salta de pista si el archivo está cargando '
+            'cerca del final: antes podía confundir una carga lenta con un '
+            'cuelgue y pasar a la siguiente sola.',
+      ],
+    ),
+    ChangelogEntry(
       build: 63,
       title: 'Avisos más chicos y más cortos',
       fixes: [
