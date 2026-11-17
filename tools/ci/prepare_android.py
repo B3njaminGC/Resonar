@@ -353,6 +353,7 @@ class MainActivity : AudioServiceActivity() {
                             openEqualizer(call.argument<Int>("audioSessionId") ?: 0),
                         )
                     "raiseVolumeIfMuted" -> result.success(raiseVolumeIfMuted())
+                    "isCallActive" -> result.success(isCallActive())
                     else -> result.notImplemented()
                 }
         }
@@ -372,6 +373,30 @@ class MainActivity : AudioServiceActivity() {
                 AudioManager.FLAG_SHOW_UI,
             )
             true
+        } catch (error: Throwable) {
+            false
+        }
+    }
+
+    /**
+     * Si hay una llamada en curso o entrando.
+     *
+     * Hace falta porque este teléfono avisa de una notificación con el mismo
+     * evento que de una llamada (pérdida transitoria del foco de audio), y las
+     * dos cosas piden reacciones opuestas: la notificación solo tiene que
+     * bajar el volumen, la llamada tiene que pausar. El modo del AudioManager
+     * es lo que las separa.
+     */
+    private fun isCallActive(): Boolean {
+        return try {
+            val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            when (audio.mode) {
+                AudioManager.MODE_RINGTONE,
+                AudioManager.MODE_IN_CALL,
+                AudioManager.MODE_IN_COMMUNICATION,
+                -> true
+                else -> false
+            }
         } catch (error: Throwable) {
             false
         }

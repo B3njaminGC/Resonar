@@ -29,6 +29,17 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 69,
+      title: 'La notificación ya no pausa la música',
+      fixes: [
+        'Tu teléfono avisa de una notificación con el mismo evento que de una '
+            'llamada, así que la app pausaba la música unos segundos cada vez. '
+            'Ahora baja el volumen y solo pausa si hay una llamada de verdad.',
+        'Por lo mismo, el ajuste de cuánto bajar con una notificación '
+            'empieza a funcionar: antes ese camino no se usaba nunca.',
+      ],
+    ),
+    ChangelogEntry(
       build: 68,
       title: 'Fuera el fundido entre canciones',
       news: [

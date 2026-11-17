@@ -16,6 +16,11 @@ import 'artwork_cache.dart';
 import 'equalizer.dart';
 import 'player_handler.dart';
 
+/// Canal con el código nativo de Android para las cosas de audio que Flutter
+/// no puede hacer solo: subir el volumen, abrir el ecualizador del sistema y
+/// preguntar si hay una llamada en curso.
+const MethodChannel _audioChannel = MethodChannel('resonar/audio');
+
 /// Si esta lectura parece un reproductor trabado al final de la pista.
 ///
 /// Existe porque hay archivos (sobre todo bajados) que se clavan en el último
@@ -211,6 +216,10 @@ class AudioService {
   Timer? _duckTimer;
   Timer? _duckRamp;
 
+  /// Pregunta cada tanto si apareció una llamada mientras hay una
+  /// interrupción en curso.
+  Timer? _callWatch;
+
   /// Cuándo pausó la persona por última vez, y cuándo arrancó solo el
   /// reproductor al conectarse una salida.
   DateTime _lastManualPause = DateTime.fromMillisecondsSinceEpoch(0);
@@ -307,46 +316,103 @@ class AudioService {
 
   /// Qué hacer cuando otra app pide el audio.
   ///
-  /// Hay dos casos y no se tratan igual:
+  /// La teoría dice que Android avisa distinto según el caso: `duck` para un
+  /// sonido corto (una notificación) y `pause` para una interrupción de verdad
+  /// (una llamada). En la práctica no: hay teléfonos que mandan `pause`
+  /// también para las notificaciones, y se comprobó con el registro de
+  /// *Diagnóstico de audio* (una notificación llegó como `pause` y duró 3,3
+  /// segundos). Confiar en el tipo de evento dejaba la música muda en cada
+  /// notificación, y además volvía inútil el ajuste de cuánto bajar, porque
+  /// ese camino nunca se usaba.
   ///
-  /// - `duck`: un sonido corto, típicamente una notificación. La música sigue,
-  ///   más baja, según [AppSettings.duckPercent].
-  /// - `pause` o `unknown`: una interrupción de verdad, como una llamada. Ahí
-  ///   se pausa y se reanuda al terminar, pero solo si la pausa fue nuestra:
-  ///   si la persona ya había pausado, se queda pausado.
+  /// Así que el tipo de evento ya no decide si se pausa. Siempre se empieza
+  /// bajando el volumen, y se pausa solo si [_isCallActive] confirma que hay
+  /// una llamada, cosa que se sigue preguntando mientras la interrupción dure
+  /// (podés atender dos segundos más tarde). Una notificación entonces es un
+  /// bajón de volumen; una llamada, una pausa.
+  ///
+  /// `unknown` es la excepción: en Android es la pérdida definitiva del foco
+  /// (otra app se queda con el audio) y ahí se pausa sin vueltas.
   void _onInterruption(AudioInterruptionEvent event) {
     AudioLog.add(
       'interrupción ${event.begin ? 'EMPIEZA' : 'TERMINA'} '
       '· tipo ${event.type.name}',
     );
-    if (event.type == AudioInterruptionType.duck) {
+
+    if (!event.begin) {
       _duckTimer?.cancel();
-      _rampDuckTo(
-        event.begin ? duckFactorFor(AppSettings.instance.duckPercent) : 1.0,
-      );
-      if (event.begin) {
-        _duckTimer = Timer(_maxDuckDuration, () {
-          AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
-          _rampDuckTo(1.0);
-        });
+      _callWatch?.cancel();
+      _callWatch = null;
+      _rampDuckTo(1.0);
+      if (_pausedByInterruption) {
+        _pausedByInterruption = false;
+        AudioLog.add('sigue la música: terminó la interrupción');
+        unawaited(_startPlayback());
       }
       return;
     }
-    if (event.begin) {
+
+    if (event.type == AudioInterruptionType.unknown) {
       if (_player.playing) {
-        _pausedByInterruption = true;
-        AudioLog.add('pausa por interrupción');
+        _pausedByInterruption = false; // pérdida definitiva: no se reanuda
+        AudioLog.add('pausa: otra app se quedó con el audio');
         unawaited(_player.pause());
       }
       return;
     }
-    // Terminó la interrupción: el volumen vuelve y, si la pausa la pusimos
-    // nosotros, la música sigue.
+
+    // Empieza algo corto o una llamada: todavía no se sabe. Se baja el
+    // volumen y se averigua.
     _duckTimer?.cancel();
-    _rampDuckTo(1.0);
-    if (_pausedByInterruption) {
-      _pausedByInterruption = false;
-      unawaited(_startPlayback());
+    _rampDuckTo(duckFactorFor(AppSettings.instance.duckPercent));
+    _duckTimer = Timer(_maxDuckDuration, () {
+      AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
+      _rampDuckTo(1.0);
+    });
+    _watchForCall();
+  }
+
+  /// Pregunta si hay una llamada, ahora y durante los próximos segundos.
+  ///
+  /// Se pregunta varias veces porque el modo del teléfono no cambia en el
+  /// mismo instante en que se pierde el foco: entre que el evento llega y que
+  /// Android se pone en modo llamada pasan unas décimas, y si atendés más
+  /// tarde, más todavía.
+  void _watchForCall() {
+    _callWatch?.cancel();
+    var checks = 0;
+    Future<void> check() async {
+      if (!await _isCallActive()) return;
+      _callWatch?.cancel();
+      _callWatch = null;
+      if (!_player.playing) return;
+      _pausedByInterruption = true;
+      AudioLog.add('pausa: hay una llamada');
+      await _player.pause();
+    }
+
+    unawaited(check());
+    _callWatch = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (++checks > 20) {
+        // Diez segundos sin llamada: era un sonido corto raro y largo. Queda
+        // con el volumen bajo hasta que la interrupción termine.
+        timer.cancel();
+        _callWatch = null;
+        return;
+      }
+      unawaited(check());
+    });
+  }
+
+  /// Si el teléfono está en modo llamada (sonando, hablando o en una
+  /// videollamada).
+  Future<bool> _isCallActive() async {
+    if (!Platform.isAndroid) return false;
+    try {
+      return await _audioChannel.invokeMethod<bool>('isCallActive') ?? false;
+    } catch (error) {
+      debugPrint('No se pudo consultar el modo de audio: $error');
+      return false;
     }
   }
 
@@ -781,9 +847,7 @@ class AudioService {
   Future<void> _raiseVolumeIfMuted() async {
     if (!Platform.isAndroid || !AppSettings.instance.raiseVolumeOnPlay) return;
     try {
-      await const MethodChannel(
-        'resonar/audio',
-      ).invokeMethod<bool>('raiseVolumeIfMuted');
+      await _audioChannel.invokeMethod<bool>('raiseVolumeIfMuted');
     } catch (error) {
       debugPrint('No se pudo revisar el volumen: $error');
     }
@@ -793,7 +857,7 @@ class AudioService {
   void startVolumeWatch() {
     if (_volumeWatchStarted || !Platform.isAndroid) return;
     _volumeWatchStarted = true;
-    const MethodChannel('resonar/audio').setMethodCallHandler((call) async {
+    _audioChannel.setMethodCallHandler((call) async {
       if (call.method != 'musicVolumeZero') return null;
       AudioLog.add('el volumen del sistema quedó en cero');
       if (AppSettings.instance.pauseOnZeroVolume && _player.playing) {

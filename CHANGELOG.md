@@ -9,6 +9,27 @@ versión de la app.
 
 ## [No publicado]
 
+### Corregido (lo que desencadenó todo)
+- **Una notificación pausaba la música.** El registro de *Diagnóstico de
+  audio* lo resolvió en una lectura: este teléfono avisa de una notificación
+  con `AudioInterruptionType.pause`, el mismo evento que usa para una llamada,
+  y duró 3,3 segundos. O sea que el tipo de evento no distingue una cosa de la
+  otra, y como el camino de `duck` nunca se ejecutaba, el ajuste de cuánto
+  bajar tampoco hacía nada: eso explica que elegir "No bajar" no cambiara
+  nada.
+- El tipo de evento ya no decide si se pausa. Toda interrupción transitoria
+  empieza bajando el volumen, y se pausa solo si el modo del `AudioManager`
+  confirma una llamada (nuevo método nativo `isCallActive`), cosa que se
+  consulta al llegar el evento y cada 500 ms durante diez segundos, porque el
+  modo no cambia en el mismo instante y se puede atender más tarde.
+  `AudioInterruptionType.unknown` sigue pausando sin vueltas: en Android es la
+  pérdida definitiva del foco.
+
+### Nota de método
+Las tres correcciones anteriores de esto (builds 59, 61 y 62) fueron a ciegas
+y ninguna podía funcionar, porque todas asumían que el evento era `duck`. El
+diagnóstico de audio del build 68 dio el dato en diez minutos.
+
 ### Quitado
 - **El fundido entre canciones (fade in/out).** Era la causa de que el audio
   se trabara sonando en silencio. El fundido recalculaba el volumen cada
