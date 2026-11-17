@@ -11,6 +11,7 @@ import 'package:just_audio/just_audio.dart';
 import '../library/track_index.dart';
 import '../theme/app_theme.dart';
 import 'app_settings.dart';
+import 'audio_log.dart';
 import 'artwork_cache.dart';
 import 'equalizer.dart';
 import 'player_handler.dart';
@@ -102,7 +103,6 @@ class AudioService {
 
   // Los vigilantes se arrancan una sola vez: engancharlos dos veces dejaría
   // dos temporizadores y dos oyentes compitiendo sobre el mismo reproductor.
-  bool _fadeStarted = false;
   bool _watchdogStarted = false;
   bool _volumeWatchStarted = false;
   bool _pauseWhenHeadphonesDisconnected = true;
@@ -197,11 +197,7 @@ class AudioService {
     if (file != null) handler.setItem(_itemFor(file));
   }
 
-  StreamSubscription<Duration>? _fadeSubscription;
   StreamSubscription<AudioInterruptionEvent>? _interruptionSubscription;
-
-  /// Volumen que pide el fundido entre canciones (0 a 1).
-  double _fadeVolume = 1.0;
 
   /// Cuánto se agacha el volumen mientras otra app hace un sonido corto.
   double _duckFactor = 1.0;
@@ -230,9 +226,6 @@ class AudioService {
   /// igual.
   static const Duration _maxDuckDuration = Duration(seconds: 6);
 
-  /// El volumen final es el del fundido multiplicado por el del agachado, así
-  /// los dos pueden actuar sin pisarse: el fundido corre cada 120 ms y una
-  /// notificación puede llegar justo en el medio.
   /// Baja o sube el volumen de a poco en vez de un salto.
   ///
   /// Lo que molesta de una notificación no es cuánto baja sino **el escalón**:
@@ -260,16 +253,28 @@ class AudioService {
     });
   }
 
+  /// Pone el volumen del reproductor.
+  ///
+  /// Lo único que lo mueve es el agachado por notificaciones. Antes también
+  /// entraba el fundido entre canciones, que se recalculaba cada 120 ms a
+  /// partir de la posición; se quitó porque si ese cálculo quedaba clavado en
+  /// un valor bajo la música seguía corriendo sin que se oyera nada.
   Future<void> _applyVolume({bool force = false}) async {
-    final target = (_fadeVolume * _duckFactor).clamp(0.0, 1.0);
+    final target = _duckFactor.clamp(0.0, 1.0);
     // Volver exactamente a 1.0 importa: con el umbral solo, quedaría en 0,99.
     final snapBack = target == 1.0 && _lastVolume != 1.0;
     // Durante una rampa los pasos son chicos a propósito y el umbral los
     // comería, así que ahí se aplica siempre.
     if (!force && !snapBack && (target - _lastVolume).abs() <= 0.02) return;
+    final before = _lastVolume;
     _lastVolume = target;
     try {
       await _player.setVolume(target);
+      if ((target - before).abs() > 0.05) {
+        AudioLog.add(
+          'volumen ${(before * 100).round()}% → ${(target * 100).round()}%',
+        );
+      }
     } catch (error) {
       debugPrint('No se pudo ajustar el volumen: $error');
     }
@@ -310,9 +315,9 @@ class AudioService {
   ///   se pausa y se reanuda al terminar, pero solo si la pausa fue nuestra:
   ///   si la persona ya había pausado, se queda pausado.
   void _onInterruption(AudioInterruptionEvent event) {
-    debugPrint(
-      'Interrupción de audio: '
-      '${event.begin ? 'empieza' : 'termina'} ${event.type}',
+    AudioLog.add(
+      'interrupción ${event.begin ? 'EMPIEZA' : 'TERMINA'} '
+      '· tipo ${event.type.name}',
     );
     if (event.type == AudioInterruptionType.duck) {
       _duckTimer?.cancel();
@@ -321,7 +326,7 @@ class AudioService {
       );
       if (event.begin) {
         _duckTimer = Timer(_maxDuckDuration, () {
-          debugPrint('No llegó el fin de la interrupción: vuelvo el volumen.');
+          AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
           _rampDuckTo(1.0);
         });
       }
@@ -330,6 +335,7 @@ class AudioService {
     if (event.begin) {
       if (_player.playing) {
         _pausedByInterruption = true;
+        AudioLog.add('pausa por interrupción');
         unawaited(_player.pause());
       }
       return;
@@ -344,35 +350,6 @@ class AudioService {
     }
   }
 
-  /// Fundido de entrada y salida de cada canción (según Ajustes). Llamar una
-  /// vez al iniciar.
-  void startFade() {
-    if (_fadeStarted) return;
-    _fadeStarted = true;
-    _fadeSubscription?.cancel();
-    _fadeSubscription = _player
-        .createPositionStream(
-          minPeriod: const Duration(milliseconds: 120),
-          maxPeriod: const Duration(milliseconds: 250),
-        )
-        .listen((position) {
-          final seconds = AppSettings.instance.fadeSeconds;
-          var volume = 1.0;
-          if (seconds > 0) {
-            final window = seconds * 1000.0;
-            volume = (position.inMilliseconds / window).clamp(0.0, 1.0);
-            final duration = _player.duration;
-            if (duration != null) {
-              final left = (duration - position).inMilliseconds / window;
-              volume = math.min(volume, left.clamp(0.0, 1.0));
-            }
-          }
-          if ((volume - _fadeVolume).abs() > 0.001) {
-            _fadeVolume = volume;
-            unawaited(_applyVolume());
-          }
-        });
-  }
 
   Duration _lastWatchPosition = Duration.zero;
   int _stuckTicks = 0;
@@ -403,6 +380,7 @@ class AudioService {
       _stuckTicks++;
       if (_stuckTicks < 2) return; // ~4 s sin avanzar al final
       _stuckTicks = 0;
+      AudioLog.add('se salta: la pista parece trabada al final');
       debugPrint('El reproductor se trabó al final: paso a la siguiente.');
       unawaited(_recoverFromStall());
     });
@@ -475,7 +453,9 @@ class AudioService {
       );
       await _becomingNoisySubscription?.cancel();
       _becomingNoisySubscription = session.becomingNoisyEventStream.listen((_) {
+        AudioLog.add('se desconectó la salida de audio');
         if (_pauseWhenHeadphonesDisconnected && _player.playing) {
+          AudioLog.add('pausa por desconexión');
           unawaited(_player.pause());
         }
       });
@@ -815,7 +795,9 @@ class AudioService {
     _volumeWatchStarted = true;
     const MethodChannel('resonar/audio').setMethodCallHandler((call) async {
       if (call.method != 'musicVolumeZero') return null;
+      AudioLog.add('el volumen del sistema quedó en cero');
       if (AppSettings.instance.pauseOnZeroVolume && _player.playing) {
+        AudioLog.add('pausa por volumen en cero');
         await _player.pause();
       }
       return null;
@@ -828,7 +810,6 @@ class AudioService {
     _duckTimer?.cancel();
     _duckRamp?.cancel();
     _duckFactor = 1.0;
-    if (AppSettings.instance.fadeSeconds == 0) _fadeVolume = 1.0;
     unawaited(_applyVolume(force: true));
     unawaited(_raiseVolumeIfMuted());
     try {

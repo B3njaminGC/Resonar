@@ -9,6 +9,30 @@ versión de la app.
 
 ## [No publicado]
 
+### Quitado
+- **El fundido entre canciones (fade in/out).** Era la causa de que el audio
+  se trabara sonando en silencio. El fundido recalculaba el volumen cada
+  120 ms desde `createPositionStream`, y guardaba el último valor en
+  `_fadeVolume`. Si ese flujo deja de emitir —pantalla bloqueada, app en
+  segundo plano— el valor se queda donde estaba. Cuando quedaba clavado cerca
+  del final de una pista (volumen bajando hacia 0) y la pista cambiaba, la
+  siguiente arrancaba con el volumen viejo: el reproductor dice que está
+  reproduciendo y no se oye nada, que es justo lo reportado al desbloquear el
+  teléfono. Cambiar la salida de audio forzaba al flujo a emitir otra vez y el
+  volumen se recalculaba, de ahí que "altavoz y volver" lo arreglara.
+  Se van el ajuste, el estado y el oyente: ahora el volumen solo lo mueve el
+  agachado por notificaciones, que es un camino corto y con rampa propia.
+
+### Añadido
+- *Ajustes → Configuración avanzada → Diagnóstico de audio*: registro en
+  memoria (`AudioLog`) de los últimos 60 eventos de audio —interrupciones y su
+  tipo, cambios de volumen, desconexiones, pausas y saltos— con botones para
+  copiar y limpiar. Es para responder con datos una pregunta que desde afuera
+  es adivinanza: cuando la música se baja sola, ¿lo hizo la app o el sistema?
+  Si entra una notificación y no aparece ninguna línea, Android no avisó nada
+  y no hay ajuste de la app que pueda cambiarlo. No se guarda en disco ni sale
+  del teléfono.
+
 ### Cambiado (reordenar)
 - La cola y las listas pasan a `buildDefaultDragHandles: false` con un
   `ReorderableDragStartListener` en el icono de las rayitas. El arrastre por

@@ -53,10 +53,7 @@ class AppSettings {
 
   Future<void> setDynamicColors(bool value) => _box.put('dynamic_colors', value);
 
-  /// Segundos de fundido al empezar y terminar cada canción (0 = apagado).
-  int get fadeSeconds => (_box.get('fade_seconds') as num?)?.toInt() ?? 0;
 
-  Future<void> setFadeSeconds(int value) => _box.put('fade_seconds', value);
 
   /// Cuánto baja el volumen mientras suena una notificación, en porcentaje
   /// (20 = la música se escucha al 80 %). En 100 queda muda.

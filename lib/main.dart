@@ -61,7 +61,6 @@ Future<void> main() async {
   // Retoma la última canción y cola (en pausa).
   unawaited(AudioService().restoreLastSession());
   PlayStats.instance.attach(AudioService());
-  AudioService().startFade();
   AudioService().startEndWatchdog();
   AudioService().startVolumeWatch();
   LibraryWatcher.instance.start();

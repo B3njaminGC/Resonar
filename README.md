@@ -46,7 +46,7 @@ le indiques y arma la biblioteca con las etiquetas de cada archivo.
 - Controles en la notificación y en la pantalla de bloqueo, con carátula,
   progreso y botón de favorita.
 - Cola editable, aleatorio que mezcla una sola vez, repetición, velocidad de
-  0,5× a 2×, fundido entre canciones y temporizador de apagado.
+  0,5× a 2× y temporizador de apagado.
 - Ecualizador propio con bandas, curvas listas y refuerzo de volumen.
 - Elegís cuánto baja la música mientras suena una notificación.
 - Retoma la última canción donde la dejaste.

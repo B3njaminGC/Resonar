@@ -20,6 +20,7 @@ import '../update/update_prompt.dart';
 import 'support_screen.dart';
 import '../theme/accent.dart';
 import '../theme/notice.dart';
+import 'audio_log_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -42,7 +43,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late List<String> _swapDevices = _settings.swapButtonDevices;
   late bool _pauseOnZero = _settings.pauseOnZeroVolume;
   late bool _raiseVolume = _settings.raiseVolumeOnPlay;
-  late int _fadeSeconds = _settings.fadeSeconds;
   late int _duckPercent = _settings.duckPercent;
   late bool _playOnConnect = _settings.playOnHeadphoneConnect;
   late bool _dynamicColors = _settings.dynamicColors;
@@ -370,27 +370,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 ListTile(
-                  leading: Icon(Icons.swap_horiz, color: context.accent),
-                  title: const Text('Fundido entre canciones'),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Wrap(
-                      spacing: 8,
-                      children: [
-                        for (final seconds in const [0, 2, 4, 6, 8])
-                          ChoiceChip(
-                            label: Text(seconds == 0 ? 'Apagado' : '$seconds s'),
-                            selected: _fadeSeconds == seconds,
-                            onSelected: (_) {
-                              _settings.setFadeSeconds(seconds);
-                              setState(() => _fadeSeconds = seconds);
-                            },
-                          ),
-                      ],
-                    ),
-                  ),
-                ),
-                ListTile(
                   leading: Icon(
                     Icons.notifications_active,
                     color: context.accent,
@@ -466,6 +445,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   childrenPadding: EdgeInsets.zero,
                   children: [
+                  ListTile(
+                    leading: Icon(Icons.monitor_heart, color: context.accent),
+                    title: const Text('Diagnóstico de audio'),
+                    subtitle: const Text(
+                      'Qué avisa Android cuando la música se baja o se pausa '
+                      'sola.',
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const AudioLogScreen(),
+                      ),
+                    ),
+                  ),
                   SwitchListTile(
                     secondary: Icon(Icons.volume_off, color: context.accent),
                     title: const Text('Pausar con el volumen en cero'),

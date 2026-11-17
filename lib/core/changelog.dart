@@ -29,6 +29,23 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 68,
+      title: 'Fuera el fundido entre canciones',
+      news: [
+        'En Ajustes → Configuración avanzada hay un "Diagnóstico de audio": '
+            'muestra qué le avisa Android a la app cuando la música se baja o '
+            'se pausa sola. Sirve para saber si algo lo hizo la app o el '
+            'sistema.',
+      ],
+      fixes: [
+        'Se quitó el fundido entre canciones. Era la causa de que el audio se '
+            'trabara: calculaba el volumen a partir de la posición de la '
+            'canción, y si ese cálculo quedaba clavado (al bloquear el '
+            'teléfono, por ejemplo) la música seguía corriendo sin que se '
+            'oyera nada.',
+      ],
+    ),
+    ChangelogEntry(
       build: 67,
       title: 'Reordenar sin mantener apretado',
       fixes: [
