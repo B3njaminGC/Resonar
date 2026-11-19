@@ -9,6 +9,23 @@ versión de la app.
 
 ## [No publicado]
 
+### Corregido
+- **Un sonido corto hacía tropezar la música.** El tic de enviar un mensaje
+  pide el foco de audio y lo devuelve en un instante, pero la bajada tarda
+  250 ms y la vuelta 450, así que el tropezón llegaba cuando el sonido ya
+  había terminado. Ahora el volumen no se toca hasta que pasen 400 ms
+  (`_duckAfter`): si la interrupción terminó antes, no se bajó nada y no hubo
+  nada que notar. La consulta por una llamada sigue saliendo en el primer
+  instante, que no puede esperar.
+- El registro de *Diagnóstico de audio* anota cuánto duró cada interrupción,
+  para poder ajustar ese umbral con datos y no a ojo.
+
+### Quitado
+- *Ajustes → Sonido → Bajar el volumen con notificaciones*. El volumen pasa a
+  ser fijo (15 %, un poco menos que antes) en `_duckedFactor`. Es un detalle
+  con una sola respuesta razonable y nadie entra a Ajustes a elegir un
+  porcentaje; pedido explícito del usuario.
+
 ### Corregido (lo que desencadenó todo)
 - **Una notificación pausaba la música.** El registro de *Diagnóstico de
   audio* lo resolvió en una lectura: este teléfono avisa de una notificación

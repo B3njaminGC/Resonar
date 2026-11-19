@@ -43,7 +43,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late List<String> _swapDevices = _settings.swapButtonDevices;
   late bool _pauseOnZero = _settings.pauseOnZeroVolume;
   late bool _raiseVolume = _settings.raiseVolumeOnPlay;
-  late int _duckPercent = _settings.duckPercent;
   late bool _playOnConnect = _settings.playOnHeadphoneConnect;
   late bool _dynamicColors = _settings.dynamicColors;
   bool _checkingUpdate = false;
@@ -366,48 +365,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => Navigator.of(context).push<void>(
                     MaterialPageRoute<void>(
                       builder: (_) => const EqualizerScreen(),
-                    ),
-                  ),
-                ),
-                ListTile(
-                  leading: Icon(
-                    Icons.notifications_active,
-                    color: context.accent,
-                  ),
-                  title: const Text('Bajar el volumen con notificaciones'),
-                  subtitle: Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _duckPercent == 0
-                              ? 'La música sigue igual mientras suena una '
-                                    'notificación.'
-                              : _duckPercent == 100
-                              ? 'La música se silencia mientras suena una '
-                                    'notificación.'
-                              : 'Mientras suena una notificación, la música '
-                                    'se escucha al ${100 - _duckPercent} %.',
-                          style: const TextStyle(fontSize: 13),
-                        ),
-                        Wrap(
-                          spacing: 8,
-                          children: [
-                            for (final percent in const [0, 10, 20, 40, 100])
-                              ChoiceChip(
-                                label: Text(
-                                  percent == 0 ? 'No bajar' : '−$percent %',
-                                ),
-                                selected: _duckPercent == percent,
-                                onSelected: (_) {
-                                  _settings.setDuckPercent(percent);
-                                  setState(() => _duckPercent = percent);
-                                },
-                              ),
-                          ],
-                        ),
-                      ],
                     ),
                   ),
                 ),

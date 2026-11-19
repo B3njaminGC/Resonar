@@ -215,6 +215,27 @@ class AudioService {
 
   Timer? _duckTimer;
   Timer? _duckRamp;
+  Timer? _duckDelay;
+
+  /// Cuándo empezó la interrupción en curso, para medir cuánto duró.
+  DateTime? _interruptionStarted;
+
+  /// Lo que se espera antes de bajar el volumen.
+  ///
+  /// Un sonido de sistema corto (el tic de enviar un mensaje) pide el audio y
+  /// lo devuelve en un instante. Bajar y subir por eso se oye peor que no
+  /// hacer nada, porque el tropezón llega cuando el sonido ya terminó. Con
+  /// esta espera, cualquier cosa más corta que esto pasa sin que la música se
+  /// mueva; una notificación de verdad dura bastante más.
+  static const Duration _duckAfter = Duration(milliseconds: 400);
+
+  /// El volumen al que queda la música mientras suena una notificación.
+  ///
+  /// Fijo y no configurable a propósito: es un detalle que tiene una sola
+  /// respuesta razonable, y nadie quiere entrar a Ajustes a elegir un
+  /// porcentaje. Lo justo para que la notificación se destaque sin que la
+  /// canción desaparezca.
+  static final double _duckedFactor = duckFactorFor(15);
 
   /// Pregunta cada tanto si apareció una llamada mientras hay una
   /// interrupción en curso.
@@ -334,15 +355,27 @@ class AudioService {
   /// `unknown` es la excepción: en Android es la pérdida definitiva del foco
   /// (otra app se queda con el audio) y ahí se pausa sin vueltas.
   void _onInterruption(AudioInterruptionEvent event) {
-    AudioLog.add(
-      'interrupción ${event.begin ? 'EMPIEZA' : 'TERMINA'} '
-      '· tipo ${event.type.name}',
-    );
-
     if (!event.begin) {
+      final lasted = _interruptionStarted == null
+          ? null
+          : DateTime.now().difference(_interruptionStarted!);
+      _interruptionStarted = null;
+      AudioLog.add(
+        'interrupción TERMINA · tipo ${event.type.name}'
+        '${lasted == null ? '' : ' · duró ${lasted.inMilliseconds} ms'}',
+      );
+      final wasIgnored = _duckDelay?.isActive ?? false;
+      _duckDelay?.cancel();
+      _duckDelay = null;
       _duckTimer?.cancel();
       _callWatch?.cancel();
       _callWatch = null;
+      if (wasIgnored) {
+        // Terminó antes de que hubiéramos tocado el volumen: no se tocó nada
+        // y no hay nada que devolver.
+        AudioLog.add('sonido corto: no se bajó el volumen');
+        return;
+      }
       _rampDuckTo(1.0);
       if (_pausedByInterruption) {
         _pausedByInterruption = false;
@@ -351,6 +384,9 @@ class AudioService {
       }
       return;
     }
+
+    _interruptionStarted = DateTime.now();
+    AudioLog.add('interrupción EMPIEZA · tipo ${event.type.name}');
 
     if (event.type == AudioInterruptionType.unknown) {
       if (_player.playing) {
@@ -361,14 +397,23 @@ class AudioService {
       return;
     }
 
-    // Empieza algo corto o una llamada: todavía no se sabe. Se baja el
-    // volumen y se averigua.
-    _duckTimer?.cancel();
-    _rampDuckTo(duckFactorFor(AppSettings.instance.duckPercent));
-    _duckTimer = Timer(_maxDuckDuration, () {
-      AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
-      _rampDuckTo(1.0);
+    // Todavía no se toca el volumen. Los sonidos muy cortos —el tic de enviar
+    // un mensaje, por ejemplo— empiezan y terminan en menos de lo que tarda
+    // una bajada, así que bajar y subir enseguida se oye como un tropezón por
+    // algo que ya pasó. Si la interrupción no sigue viva cuando venza esta
+    // espera, no se bajó nada y no hubo nada que notar.
+    _duckDelay?.cancel();
+    _duckDelay = Timer(_duckAfter, () {
+      _duckDelay = null;
+      _rampDuckTo(_duckedFactor);
+      _duckTimer?.cancel();
+      _duckTimer = Timer(_maxDuckDuration, () {
+        AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
+        _rampDuckTo(1.0);
+      });
     });
+
+    // La llamada no espera: se pregunta desde el primer momento.
     _watchForCall();
   }
 
@@ -385,6 +430,8 @@ class AudioService {
       if (!await _isCallActive()) return;
       _callWatch?.cancel();
       _callWatch = null;
+      _duckDelay?.cancel();
+      _duckDelay = null;
       if (!_player.playing) return;
       _pausedByInterruption = true;
       AudioLog.add('pausa: hay una llamada');
@@ -493,7 +540,7 @@ class AudioService {
       // app*: el descuento lo elige el teléfono y puede dejar la música
       // inaudible, sin que haya nada que podamos hacer. En true se desactiva
       // ese automatismo y Android nos avisa, así que el volumen durante una
-      // notificación lo decidimos nosotros (ver `duckPercent` en Ajustes).
+      // notificación lo decidimos nosotros (ver `_duckedFactor`).
       //
       // El precio es que hay que manejar las interrupciones a mano, incluidas
       // las de verdad (una llamada): eso lo hace `_onInterruption`.
@@ -873,6 +920,8 @@ class AudioService {
     // que haya llegado ningún aviso: si algo quedó a medias, esto lo salva.
     _duckTimer?.cancel();
     _duckRamp?.cancel();
+    _duckDelay?.cancel();
+    _duckDelay = null;
     _duckFactor = 1.0;
     unawaited(_applyVolume(force: true));
     unawaited(_raiseVolumeIfMuted());

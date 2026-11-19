@@ -29,6 +29,18 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 70,
+      title: 'El tic de enviar un mensaje ya no mueve la música',
+      fixes: [
+        'Los sonidos muy cortos (el tic de enviar un mensaje en WhatsApp) '
+            'hacían bajar y subir el volumen por algo que ya había terminado. '
+            'Ahora la música no se mueve si el sonido dura menos de un '
+            'pestañeo.',
+        'Con una notificación de verdad baja un poco menos que antes, y ya no '
+            'hay nada que configurar: se fue esa opción de Ajustes.',
+      ],
+    ),
+    ChangelogEntry(
       build: 69,
       title: 'La notificación ya no pausa la música',
       fixes: [
