@@ -10,6 +10,10 @@ versión de la app.
 ## [No publicado]
 
 ### Corregido
+- **Los botones del widget de atajos se estiraban a lo ancho.** Cada botón
+  recibía una parte del ancho con la altura fija, así que su fondo redondo se
+  volvía un óvalo cuando el widget ocupaba toda la pantalla. Ahora cada botón
+  va en una celda que se reparte el ancho y él mantiene 48 dp fijos.
 - **Un sonido corto hacía tropezar la música.** El tic de enviar un mensaje
   pide el foco de audio y lo devuelve en un instante, pero la bajada tarda
   250 ms y la vuelta 450, así que el tropezón llegaba cuando el sonido ya

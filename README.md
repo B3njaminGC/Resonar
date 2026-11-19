@@ -48,7 +48,7 @@ le indiques y arma la biblioteca con las etiquetas de cada archivo.
 - Cola editable, aleatorio que mezcla una sola vez, repetición, velocidad de
   0,5× a 2× y temporizador de apagado.
 - Ecualizador propio con bandas, curvas listas y refuerzo de volumen.
-- Elegís cuánto baja la música mientras suena una notificación.
+- La música baja un poco con una notificación y solo se pausa en una llamada, sin nada que configurar.
 - Retoma la última canción donde la dejaste.
 
 **Letras**

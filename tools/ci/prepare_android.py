@@ -988,16 +988,24 @@ WIDGET_LAYOUT_PLAYER = """<?xml version="1.0" encoding="utf-8"?>
 </FrameLayout>
 """
 
-SHORTCUT_ITEM = """        <ImageView
-            android:id="@+id/{id}"
+# Cada botón va dentro de una celda que se reparte el ancho. El botón en sí
+# tiene tamaño fijo: si el ancho se le repartiera a él, el fondo redondo se
+# estiraría y quedaría ovalado cuando el widget ocupa toda la pantalla.
+SHORTCUT_ITEM = """        <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:layout_marginStart="{margin}dp"
-            android:background="@drawable/widget_button_bg"
-            android:contentDescription="{label}"
-            android:padding="12dp"
-            android:src="@drawable/{icon}" />
+            android:gravity="center">
+
+            <ImageView
+                android:id="@+id/{id}"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/widget_button_bg"
+                android:contentDescription="{label}"
+                android:padding="12dp"
+                android:src="@drawable/{icon}" />
+        </LinearLayout>
 """
 
 WIDGET_LAYOUT_SHORTCUTS = """<?xml version="1.0" encoding="utf-8"?>
@@ -1109,10 +1117,8 @@ def write_widget_resources(package):
     with open(os.path.join(layout, "widget_player.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_LAYOUT_PLAYER)
     items = "".join(
-        SHORTCUT_ITEM.format(
-            id=item[0], label=item[1], icon=item[2], margin=0 if index == 0 else 8
-        )
-        for index, item in enumerate(SHORTCUT_ITEMS)
+        SHORTCUT_ITEM.format(id=item[0], label=item[1], icon=item[2])
+        for item in SHORTCUT_ITEMS
     )
     with open(os.path.join(layout, "widget_shortcuts.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_LAYOUT_SHORTCUTS.format(items=items))

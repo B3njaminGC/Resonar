@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 71,
+      title: 'Los botones del widget de atajos ya no se estiran',
+      fixes: [
+        'Con el widget de atajos a lo ancho de toda la pantalla, los cuatro '
+            'botones se veían como óvalos. Ahora mantienen su forma redonda y '
+            'se reparten el espacio.',
+      ],
+    ),
+    ChangelogEntry(
       build: 70,
       title: 'El tic de enviar un mensaje ya no mueve la música',
       fixes: [
