@@ -77,13 +77,15 @@ class SavedQueue {
     if (id is! String || id.isEmpty) return null;
     List<String> strings(Object? value) =>
         value is List ? value.whereType<String>().toList() : const [];
+    // `as num?` fallaría con un texto; esto lo deja en 0.
+    int number(Object? value) => value is num ? value.toInt() : 0;
     final name = raw['name'];
     return SavedQueue(
       id: id,
       name: name is String && name.trim().isNotEmpty ? name : 'Cola',
       paths: strings(raw['paths']),
-      index: (raw['index'] as num?)?.toInt() ?? 0,
-      positionMs: (raw['positionMs'] as num?)?.toInt() ?? 0,
+      index: number(raw['index']),
+      positionMs: number(raw['positionMs']),
       shuffle: raw['shuffle'] == true,
       orderBeforeShuffle: strings(raw['orderBeforeShuffle']),
       loop: raw['loop'] is String ? raw['loop'] as String : 'off',
