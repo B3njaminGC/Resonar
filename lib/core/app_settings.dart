@@ -201,6 +201,21 @@ class AppSettings {
         'last_position_ms': ?positionMs,
       });
 
+  // ---- colas de reproducción guardadas (ver `QueueStore`)
+
+  List<Object?> get savedQueues {
+    final raw = _box.get('saved_queues');
+    return raw is List ? List<Object?>.of(raw) : <Object?>[];
+  }
+
+  Future<void> setSavedQueues(List<Map<String, Object>> value) =>
+      _box.put('saved_queues', value);
+
+  String get activeQueueId => (_box.get('active_queue_id') as String?) ?? '';
+
+  Future<void> setActiveQueueId(String value) =>
+      _box.put('active_queue_id', value);
+
   List<String> _stringList(String key) {
     final raw = _box.get(key);
     return raw is List ? raw.whereType<String>().toList() : <String>[];

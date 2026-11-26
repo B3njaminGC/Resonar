@@ -9,6 +9,16 @@ versión de la app.
 
 ## [No publicado]
 
+### Añadido
+- **Varias colas de reproducción.** Antes había una sola cola y reproducir
+  otra cosa la reemplazaba. Ahora cada cola es independiente (canciones,
+  canción y segundo en que iba, mezcla y bucle) y se elige a mano en la
+  pantalla *Cola*. Las crea *Reproducir en cola nueva* (selección de
+  canciones) o *Nueva*; mantener apretada una la renombra o la borra. Hasta
+  12. Cambiar de cola guarda la actual y retoma la otra donde estaba, y si
+  tiene bucle repite esa misma cola. Código en `lib/core/queue_store.dart`
+  y `AudioService.switchToQueue`.
+
 ### Corregido
 - **Los botones del widget de atajos se estiraban a lo ancho.** Cada botón
   recibía una parte del ancho con la altura fija, así que su fondo redondo se

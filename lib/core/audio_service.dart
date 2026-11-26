@@ -15,6 +15,7 @@ import 'audio_log.dart';
 import 'artwork_cache.dart';
 import 'equalizer.dart';
 import 'player_handler.dart';
+import 'queue_store.dart';
 
 /// Canal con el código nativo de Android para las cosas de audio que Flutter
 /// no puede hacer solo: subir el volumen, abrir el ecualizador del sistema y
@@ -884,6 +885,142 @@ class AudioService {
     }
     await _player.seek(Duration.zero, index: index);
     unawaited(_startPlayback());
+  }
+
+  // -------------------------------------------------------- varias colas
+
+  /// Foto de la cola que está cargada ahora, sobre [base] (nombre e id).
+  SavedQueue _snapshotActive(SavedQueue base) => base.copyWith(
+    paths: [for (final file in _queue) file.path],
+    index: _currentIndex,
+    positionMs: _player.position.inMilliseconds,
+    shuffle: shuffleNotifier.value,
+    orderBeforeShuffle: [
+      for (final file in _orderBeforeShuffle ?? const <File>[]) file.path,
+    ],
+    loop: loopNotifier.value.name,
+  );
+
+  /// Vuelca la cola viva a su lugar en [QueueStore], antes de cambiar a otra.
+  void _parkActive() {
+    final store = QueueStore.instance;
+    final current = store.byId(store.activeId.value);
+    if (current == null) return;
+    store.update(_snapshotActive(current));
+  }
+
+  /// Pasa a la cola [id]: la actual queda guardada tal cual (canción, segundo,
+  /// mezcla y bucle) y la otra se retoma donde estaba. Si estaba sonando, la
+  /// otra también suena; si estaba en pausa, queda cargada en pausa.
+  Future<void> switchToQueue(String id) async {
+    final store = QueueStore.instance;
+    if (id == store.activeId.value) return;
+    final target = store.byId(id);
+    if (target == null) return;
+    final wasPlaying = _player.playing;
+    _parkActive();
+    store.setActive(id);
+    AudioLog.add('cola: pasa a "${target.name}"');
+    await _loadSaved(target, autoplay: wasPlaying);
+  }
+
+  Future<void> _loadSaved(SavedQueue saved, {required bool autoplay}) async {
+    // El aleatorio y el bucle son de cada cola: se ponen los de esta antes de
+    // cargarla, y se dejan guardados como los de la sesión actual.
+    final loop = loopModeFromName(saved.loop);
+    shuffleNotifier.value = saved.shuffle;
+    _orderBeforeShuffle = saved.shuffle && saved.orderBeforeShuffle.isNotEmpty
+        ? [for (final path in saved.orderBeforeShuffle) File(path)]
+        : null;
+    loopNotifier.value = loop;
+    await _persistShuffle();
+    await AppSettings.instance.setLoopMode(loop.name);
+
+    final files = [
+      for (final path in saved.paths)
+        if (File(path).existsSync()) File(path),
+    ];
+    if (files.isEmpty) {
+      await clearQueue();
+      await _player.setLoopMode(loop);
+      return;
+    }
+    final savedPath = saved.index >= 0 && saved.index < saved.paths.length
+        ? saved.paths[saved.index]
+        : null;
+    var index = savedPath == null
+        ? 0
+        : files.indexWhere((file) => file.path == savedPath);
+    final sameTrack = index >= 0;
+    if (!sameTrack) index = 0;
+    final position = sameTrack
+        ? Duration(milliseconds: saved.positionMs)
+        : Duration.zero;
+    await setPlaylistAndPlay(
+      files,
+      index,
+      position: position,
+      autoplay: autoplay,
+    );
+    await _player.setLoopMode(loop);
+    // `setPlaylistAndPlay` deja la posición en 0 al arrancar y la sesión
+    // guardada todavía tiene la de la otra cola: se corrige acá.
+    await AppSettings.instance.saveSession(
+      queue: [for (final file in files) file.path],
+      index: index,
+      positionMs: position.inMilliseconds,
+    );
+  }
+
+  /// Arranca una cola nueva sin tocar las que ya hay: la actual queda guardada
+  /// y la nueva empieza con [files] (o vacía), sin mezcla y sin bucle.
+  ///
+  /// Devuelve `null` si no hizo falta crear nada (la cola actual estaba vacía,
+  /// así que se usa esa) o si ya se llegó al máximo de colas.
+  Future<SavedQueue?> startNewQueue({List<File> files = const []}) async {
+    final store = QueueStore.instance;
+    if (_queue.isEmpty) {
+      if (files.isNotEmpty) await setPlaylistAndPlay(files, 0);
+      return null;
+    }
+    if (store.isFull) return null;
+    _parkActive();
+    final queue = store.add();
+    store.setActive(queue.id);
+    AudioLog.add('cola: nueva "${queue.name}"');
+    shuffleNotifier.value = false;
+    _orderBeforeShuffle = null;
+    loopNotifier.value = LoopMode.off;
+    await _persistShuffle();
+    await AppSettings.instance.setLoopMode(LoopMode.off.name);
+    await _player.setLoopMode(LoopMode.off);
+    if (files.isEmpty) {
+      await clearQueue();
+    } else {
+      await setPlaylistAndPlay(files, 0);
+    }
+    return queue;
+  }
+
+  /// Borra la cola [id]. Si era la que suena, pasa a la vecina; si era la
+  /// única, no se borra: queda vacía.
+  Future<void> deleteQueue(String id) async {
+    final store = QueueStore.instance;
+    if (store.byId(id) == null) return;
+    if (id != store.activeId.value) {
+      store.remove(id);
+      return;
+    }
+    final all = store.queues.value;
+    if (all.length == 1) {
+      await clearQueue();
+      _parkActive();
+      return;
+    }
+    final at = all.indexWhere((queue) => queue.id == id);
+    final neighbour = all[at == 0 ? 1 : at - 1];
+    await switchToQueue(neighbour.id);
+    store.remove(id);
   }
 
   // ------------------------------------------------------------- control

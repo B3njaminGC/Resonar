@@ -45,6 +45,8 @@ le indiques y arma la biblioteca con las etiquetas de cada archivo.
 **Reproducción**
 - Controles en la notificación y en la pantalla de bloqueo, con carátula,
   progreso y botón de favorita.
+- Varias colas independientes, cada una con su canción, segundo, mezcla y
+  bucle: pasás de una a otra y sigue donde la dejaste.
 - Cola editable, aleatorio que mezcla una sola vez, repetición, velocidad de
   0,5× a 2× y temporizador de apagado.
 - Ecualizador propio con bandas, curvas listas y refuerzo de volumen.

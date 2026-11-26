@@ -63,9 +63,10 @@ permisos ni red:
 | `library_watcher_test.dart` | cuándo un cambio de estado de la app amerita revisar la biblioteca |
 | `session_test.dart` | el modo de bucle guardado se lee igual que se escribió, y el volumen con notificaciones |
 | `stall_test.dart` | cuándo se considera que el reproductor se trabó al final de la pista |
+| `queue_store_test.dart` | guardar y leer una cola (tolerante a datos rotos), nombres "Cola N" e identificadores sin repetir |
 
 **Lo que no está cubierto** y hay que probar a mano en un teléfono:
-reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de
+cambiar de cola retomando canción y segundo, reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de
 carpetas reales, lectura de etiquetas, ecualizador, Bluetooth y botones de
 auriculares, el foco de audio (qué pasa cuando entra una notificación o una
 llamada), y la descarga e instalación de actualizaciones.

@@ -29,6 +29,19 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 72,
+      title: 'Varias colas de reproducción',
+      news: [
+        'Podés tener varias colas, cada una independiente: con su canción, su '
+            'segundo, su aleatorio y su bucle. En la pantalla Cola, tocá una '
+            'para pasar a ella y sigue donde la dejaste. Mantené apretada una '
+            'para cambiarle el nombre o borrarla.',
+        'Al seleccionar canciones, "Reproducir en cola nueva" (en los tres '
+            'puntos) las suena aparte sin perder la cola que tenías. "Nueva" '
+            'arriba de la Cola crea una vacía.',
+      ],
+    ),
+    ChangelogEntry(
       build: 71,
       title: 'Los botones del widget de atajos ya no se estiran',
       fixes: [

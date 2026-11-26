@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../core/audio_service.dart';
+import '../../core/queue_store.dart';
 import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
 import 'playlist_transfer.dart';
 import '../../theme/accent.dart';
+import '../../theme/notice.dart';
 
 class QueueScreen extends StatelessWidget {
   const QueueScreen({super.key, this.showAppBar = false});
@@ -16,18 +18,25 @@ class QueueScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final audio = AudioService();
-    final content = ValueListenableBuilder<List<File>>(
-      valueListenable: audio.queueNotifier,
-      builder: (context, files, _) => files.isEmpty
-          ? const Center(
-              child: Text(
-                'No hay canciones en la cola actual.\n'
-                'Reproduce una canción o una lista.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey),
-              ),
-            )
-          : _Queue(files: files, audio: audio),
+    final content = Column(
+      children: [
+        _QueueSwitcher(audio: audio),
+        Expanded(
+          child: ValueListenableBuilder<List<File>>(
+            valueListenable: audio.queueNotifier,
+            builder: (context, files, _) => files.isEmpty
+                ? const Center(
+                    child: Text(
+                      'No hay canciones en la cola actual.\n'
+                      'Reproduce una canción o una lista.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  )
+                : _Queue(files: files, audio: audio),
+          ),
+        ),
+      ],
     );
     return showAppBar
         ? Scaffold(
@@ -162,5 +171,171 @@ class _Queue extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// Fila de colas arriba de todo: tocás una para pasar a ella, mantenés para
+/// cambiarle el nombre o borrarla, y "Nueva" arranca una vacía.
+///
+/// Cada cola guarda su canción, su segundo, su mezcla y su bucle, así que al
+/// volver a una sigue exactamente donde la dejaste.
+class _QueueSwitcher extends StatelessWidget {
+  const _QueueSwitcher({required this.audio});
+
+  final AudioService audio;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = QueueStore.instance;
+    return ValueListenableBuilder<List<SavedQueue>>(
+      valueListenable: store.queues,
+      builder: (context, queues, _) => ValueListenableBuilder<String>(
+        valueListenable: store.activeId,
+        builder: (context, activeId, _) => ValueListenableBuilder<List<File>>(
+          // La cola activa cuenta con lo que tiene cargado ahora, no con la
+          // última foto guardada.
+          valueListenable: audio.queueNotifier,
+          builder: (context, live, _) => SizedBox(
+            height: 56,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              children: [
+                for (final queue in queues)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: GestureDetector(
+                      onLongPress: () => _showMenu(context, queue),
+                      child: ChoiceChip(
+                        selected: queue.id == activeId,
+                        label: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 170),
+                          child: Text(
+                            '${queue.name} · '
+                            '${queue.id == activeId ? live.length : queue.paths.length}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        onSelected: (_) => audio.switchToQueue(queue.id),
+                      ),
+                    ),
+                  ),
+                ActionChip(
+                  avatar: const Icon(Icons.add, size: 18),
+                  label: const Text('Nueva'),
+                  onPressed: () => _newQueue(context),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _newQueue(BuildContext context) async {
+    final store = QueueStore.instance;
+    if (audio.playlistFiles.isEmpty) {
+      showNotice(context, 'Esta cola está vacía: sumale canciones desde tu música.');
+      return;
+    }
+    if (store.isFull) {
+      showNotice(context, 'Ya hay ${QueueStore.maxQueues} colas. Borrá alguna.');
+      return;
+    }
+    final queue = await audio.startNewQueue();
+    if (queue != null && context.mounted) {
+      showNotice(context, '${queue.name}: sumale canciones desde tu música.');
+    }
+  }
+
+  Future<void> _showMenu(BuildContext context, SavedQueue queue) async {
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Cambiar nombre'),
+              onTap: () => Navigator.pop(sheet, 'rename'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.delete_outline),
+              title: const Text('Borrar cola'),
+              onTap: () => Navigator.pop(sheet, 'delete'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!context.mounted || choice == null) return;
+    if (choice == 'rename') {
+      await _rename(context, queue);
+    } else {
+      await _delete(context, queue);
+    }
+  }
+
+  Future<void> _rename(BuildContext context, SavedQueue queue) async {
+    final controller = TextEditingController(text: queue.name);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('Nombre de la cola'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 30,
+          textCapitalization: TextCapitalization.sentences,
+          onSubmitted: (value) => Navigator.pop(dialog, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, controller.text),
+            child: const Text('Guardar'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (name != null) QueueStore.instance.rename(queue.id, name);
+  }
+
+  Future<void> _delete(BuildContext context, SavedQueue queue) async {
+    final store = QueueStore.instance;
+    final count = queue.id == store.activeId.value
+        ? audio.playlistFiles.length
+        : queue.paths.length;
+    final sure = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: Text('¿Borrar "${queue.name}"?'),
+        content: Text(
+          count == 0
+              ? 'La cola está vacía.'
+              : 'Se pierde la cola con sus $count canciones. Las canciones '
+                    'siguen en tu teléfono.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialog, false),
+            child: const Text('Cancelar'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialog, true),
+            child: const Text('Borrar'),
+          ),
+        ],
+      ),
+    );
+    if (sure == true) await audio.deleteQueue(queue.id);
   }
 }
