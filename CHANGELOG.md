@@ -20,6 +20,11 @@ versión de la app.
   y `AudioService.switchToQueue`.
 
 ### Corregido
+- **La música podía quedar al 15 % para siempre después de un video.** Si una
+  app pedía el audio dos veces seguidas, la segunda interrupción armaba una
+  espera nueva y, al terminar enseguida, se la tomaba por un sonido corto sin
+  devolver el volumen que había bajado la primera. Ahora el volumen se
+  devuelve siempre que estaba abajo o bajando (`endedBeforeDucking`).
 - **Los botones del widget de atajos se estiraban a lo ancho.** Cada botón
   recibía una parte del ancho con la altura fija, así que su fondo redondo se
   volvía un óvalo cuando el widget ocupaba toda la pantalla. Ahora cada botón

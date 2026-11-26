@@ -51,6 +51,21 @@ bool looksStuckAtEnd({
 /// que se baja según Ajustes: 40 % de bajada son 0,6 de volumen.
 double duckFactorFor(int percent) => 1.0 - percent.clamp(0, 100) / 100;
 
+/// Si una interrupción terminó **antes** de que se tocara el volumen.
+///
+/// No alcanza con mirar si la espera de [AudioService._duckAfter] sigue
+/// pendiente. Una app de video pide el audio varias veces seguidas (al pasar
+/// de un video a otro, por ejemplo): la música ya está agachada por la primera
+/// vez, la segunda arma una espera nueva y, si termina enseguida, se la
+/// tomaba por un sonido corto y no se devolvía el volumen. La música quedaba
+/// reproduciéndose al 15 % para siempre. Si el volumen ya estaba abajo (o
+/// bajando) hay que devolverlo igual.
+bool endedBeforeDucking({
+  required bool delayPending,
+  required double duckFactor,
+  required bool ramping,
+}) => delayPending && duckFactor >= 1.0 && !ramping;
+
 /// Convierte el modo de bucle guardado en Ajustes al del reproductor.
 ///
 /// Se guarda con `LoopMode.name`, así que los nombres tienen que coincidir:
@@ -365,7 +380,11 @@ class AudioService {
         'interrupción TERMINA · tipo ${event.type.name}'
         '${lasted == null ? '' : ' · duró ${lasted.inMilliseconds} ms'}',
       );
-      final wasIgnored = _duckDelay?.isActive ?? false;
+      final wasIgnored = endedBeforeDucking(
+        delayPending: _duckDelay?.isActive ?? false,
+        duckFactor: _duckFactor,
+        ramping: _duckRamp?.isActive ?? false,
+      );
       _duckDelay?.cancel();
       _duckDelay = null;
       _duckTimer?.cancel();
@@ -376,6 +395,11 @@ class AudioService {
         // y no hay nada que devolver.
         AudioLog.add('sonido corto: no se bajó el volumen');
         return;
+      }
+      if (_duckFactor < 1.0) {
+        AudioLog.add(
+          'vuelve el volumen (estaba al ${(_duckFactor * 100).round()} %)',
+        );
       }
       _rampDuckTo(1.0);
       if (_pausedByInterruption) {

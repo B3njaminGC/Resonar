@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 74,
+      title: 'La música ya no queda baja después de un video',
+      fixes: [
+        'Si una app de video pedía el audio varias veces seguidas, la música '
+            'podía quedar al 15 % para siempre aunque siguiera sonando. Ahora '
+            'el volumen siempre vuelve cuando termina la interrupción.',
+      ],
+    ),
+    ChangelogEntry(
       build: 72,
       title: 'Varias colas de reproducción',
       news: [

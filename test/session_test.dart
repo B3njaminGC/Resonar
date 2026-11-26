@@ -36,4 +36,52 @@ void main() {
       }
     });
   });
+
+  group('endedBeforeDucking', () {
+    test('un sonido corto que no llegó a bajar nada no devuelve nada', () {
+      expect(
+        endedBeforeDucking(
+          delayPending: true,
+          duckFactor: 1.0,
+          ramping: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('si el volumen ya estaba abajo hay que devolverlo', () {
+      // Una app de video pide el audio dos veces seguidas: la segunda termina
+      // enseguida, pero la música ya venía agachada por la primera.
+      expect(
+        endedBeforeDucking(
+          delayPending: true,
+          duckFactor: 0.15,
+          ramping: false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('si estaba bajando también hay que devolverlo', () {
+      expect(
+        endedBeforeDucking(
+          delayPending: true,
+          duckFactor: 1.0,
+          ramping: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('sin espera pendiente, la interrupción terminó normalmente', () {
+      expect(
+        endedBeforeDucking(
+          delayPending: false,
+          duckFactor: 1.0,
+          ramping: false,
+        ),
+        isFalse,
+      );
+    });
+  });
 }
