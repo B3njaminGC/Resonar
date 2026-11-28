@@ -48,6 +48,13 @@ versión de la app.
   `AudioService.setPlaylistAndPlay` / `_enterSource`.
 
 ### Corregido
+- **Pantalla entera en gris con una canción sonando.** El degradado nuevo del
+  minirreproductor (build 81) usaba `TweenAnimationBuilder` con un color
+  final nulo cuando la carátula no daba un color usable o los colores
+  dinámicos estaban apagados; eso revienta, y el cuadro de error de Flutter
+  se estiraba hasta cubrir toda la pantalla. Ahora anima hacia el color de
+  fondo en vez de hacia nada, hay pruebas de ese caso, y en la versión final
+  un widget con error ya no deja nada gris.
 - **"No se pudo abrir el instalador: MissingPluginException".** Al instalar
   una actualización desde la app, un teléfono contestó que el plugin
   `open_filex` no tenía implementación para `open_file`. La causa no se pudo

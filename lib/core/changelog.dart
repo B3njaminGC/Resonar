@@ -29,6 +29,17 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 82,
+      title: 'Arreglo: pantalla gris al volver al menú',
+      fixes: [
+        'Con una canción sonando, al volver de Ajustes o de "Qué hay de '
+            'nuevo" (o al ir al menú principal) la pantalla entera quedaba '
+            'gris. Era el degradado nuevo del minirreproductor cuando la '
+            'carátula no tenía un color claro para usar. Además, una falla '
+            'en un widget ya no puede tapar toda la pantalla.',
+      ],
+    ),
+    ChangelogEntry(
       build: 81,
       title: 'El minirreproductor se tiñe con la carátula',
       news: [

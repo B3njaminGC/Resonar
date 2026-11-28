@@ -74,6 +74,18 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final bool seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
 
+  // Si un widget revienta al armarse, Flutter lo reemplaza por un cuadro gris
+  // que ocupa todo el espacio que le den: una falla en el minirreproductor
+  // dejaba la pantalla entera en gris. En la versión final se reemplaza por
+  // nada (el error igual queda en el registro), así una falla chica no tapa
+  // la app.
+  if (kReleaseMode) {
+    ErrorWidget.builder = (details) {
+      debugPrint('Widget con error: ${details.exceptionAsString()}');
+      return const SizedBox.shrink();
+    };
+  }
+
   runApp(LocalMusicApp(seenOnboarding: seenOnboarding));
 }
 

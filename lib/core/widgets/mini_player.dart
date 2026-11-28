@@ -8,6 +8,7 @@ import '../../theme/art_palette.dart';
 import '../../theme/art_tint.dart';
 import '../app_settings.dart';
 import '../audio_service.dart';
+import 'art_tinted_bar.dart';
 import 'track_artwork.dart';
 import '../../theme/accent.dart';
 
@@ -46,31 +47,11 @@ class MiniPlayer extends StatelessWidget {
                 final tint = AppSettings.instance.dynamicColors
                     ? ArtPalette.adapt(artColor, theme.brightness)
                     : null;
-                return TweenAnimationBuilder<Color?>(
-                  tween: ColorTween(end: tint),
-                  duration: const Duration(milliseconds: 600),
-                  builder: (context, color, child) => Material(
-                    color: theme.cardColor,
-                    elevation: 8,
-                    // Ink y no un Container: así el toque sigue dibujando su
-                    // ondita por encima del degradado.
-                    child: Ink(
-                      height: 68,
-                      decoration: BoxDecoration(
-                        gradient: color == null
-                            ? null
-                            : LinearGradient(
-                                begin: Alignment.centerLeft,
-                                end: Alignment.centerRight,
-                                colors: [
-                                  color.withValues(alpha: isDark ? 0.5 : 0.32),
-                                  theme.cardColor,
-                                ],
-                              ),
-                      ),
-                      child: child,
-                    ),
-                  ),
+                return ArtTintedBar(
+                  tint: tint,
+                  base: theme.cardColor,
+                  dark: isDark,
+                  height: 68,
                   child: _buildRow(context, audioService, title, isPlaying, tint),
                 );
               },
