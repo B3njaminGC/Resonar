@@ -228,4 +228,31 @@ void main() {
       expect(queueToEvict(const [], 'a'), isNull);
     });
   });
+
+  group('selección dentro de un mismo origen', () {
+    test('la huella no depende de qué canciones se marcaron', () {
+      expect(selectionSourceOf('Mi lista'), selectionSourceOf('Mi lista'));
+      expect(selectionSourceOf(' Mi lista '), selectionSourceOf('Mi lista'));
+    });
+
+    test('otro origen es otra cola', () {
+      expect(
+        selectionSourceOf('Mi lista'),
+        isNot(selectionSourceOf('Otra lista')),
+      );
+    });
+
+    test('no se confunde con la huella de una lista entera', () {
+      expect(
+        selectionSourceOf('Mi lista'),
+        isNot(fingerprintOf(['/m/a.mp3', '/m/b.mp3'])),
+      );
+    });
+
+    test('el nombre dice de dónde salió, o queda "Selección"', () {
+      expect(selectionLabelOf('Mi lista'), 'Selección de Mi lista');
+      expect(selectionLabelOf(null), 'Selección');
+      expect(selectionLabelOf('  '), 'Selección');
+    });
+  });
 }

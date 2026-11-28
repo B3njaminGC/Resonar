@@ -77,6 +77,7 @@ class _SongsTabState extends State<SongsTab> {
             ),
             Expanded(
               child: TrackSelectionScope(
+                origin: 'Biblioteca',
                 tracks: songs,
                 builder: (context, selection) => ListView.builder(
                   itemCount: songs.length,

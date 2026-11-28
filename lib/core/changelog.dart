@@ -29,6 +29,16 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 84,
+      title: 'Una sola cola por cada selección de una lista',
+      fixes: [
+        'Si elegías canciones sueltas de una lista y las reproducías, y '
+            'después elegías otras de la misma lista, se abría una cola nueva '
+            'cada vez. Ahora la selección nueva reemplaza a la anterior de '
+            'esa lista, y la cola se llama "Selección de <lista>".',
+      ],
+    ),
+    ChangelogEntry(
       build: 82,
       title: 'Arreglo: pantalla gris al volver al menú',
       fixes: [

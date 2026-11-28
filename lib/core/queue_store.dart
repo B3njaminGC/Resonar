@@ -157,6 +157,20 @@ String uniqueQueueName(String? base, Iterable<String> existing) {
   return '$clean $number';
 }
 
+/// Huella de "las canciones que elegí a mano dentro de [origin]" (una lista,
+/// un género, la biblioteca…).
+///
+/// A diferencia de [fingerprintOf], no depende de cuáles canciones se
+/// marcaron: elegir otras tres de la misma lista es la misma cola, que se
+/// reemplaza, y no una cola nueva por cada selección.
+String selectionSourceOf(String origin) => 'sel:${origin.trim()}';
+
+/// Nombre de la cola de una selección hecha dentro de [origin].
+String selectionLabelOf(String? origin) {
+  final name = origin?.trim() ?? '';
+  return name.isEmpty ? 'Selección' : 'Selección de $name';
+}
+
 /// Huella de una lista de canciones: cantidad y un hash de las rutas, en
 /// orden. Es FNV-1a escrito a mano y no `hashCode` porque tiene que dar lo
 /// mismo en cada arranque y en cada versión de Dart: se guarda en disco.

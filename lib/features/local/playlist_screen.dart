@@ -226,6 +226,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
           : songs.isEmpty
           ? const Center(child: Text('Esta lista todavía no tiene canciones.'))
           : TrackSelectionScope(
+              origin: _name,
               tracks: _infos(),
               extraActions: [
                 SelectionAction(

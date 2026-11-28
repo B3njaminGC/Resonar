@@ -61,6 +61,7 @@ class FavoritesTab extends StatelessWidget {
             ),
             Expanded(
               child: TrackSelectionScope(
+                origin: 'Favoritas',
                 tracks: songs,
                 builder: (context, selection) => ListView.builder(
                   itemCount: songs.length,

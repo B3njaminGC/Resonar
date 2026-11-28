@@ -178,6 +178,7 @@ class _GenreScreenState extends State<GenreScreen> {
                         ),
                       )
                     : TrackSelectionScope(
+                origin: _name,
                 tracks: tracks,
                 builder: (context, selection) => ListView.builder(
                   itemCount: tracks.length,

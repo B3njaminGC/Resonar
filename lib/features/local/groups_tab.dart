@@ -193,6 +193,7 @@ class TrackGroupScreen extends StatelessWidget {
           ),
           Expanded(
             child: TrackSelectionScope(
+                origin: group.name,
                 tracks: group.tracks,
                 builder: (context, selection) => ListView.builder(
                   itemCount: group.tracks.length,

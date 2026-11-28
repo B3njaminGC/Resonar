@@ -48,6 +48,12 @@ versión de la app.
   `AudioService.setPlaylistAndPlay` / `_enterSource`.
 
 ### Corregido
+- **Una cola nueva por cada selección de la misma lista.** Cada selección a
+  mano se reconocía por las canciones marcadas, así que elegir otras de la
+  misma lista abría otra cola. Ahora se reconoce por el origen (la lista, el
+  género, Favoritas, la biblioteca): la selección nueva reemplaza a la
+  anterior de ese origen, y la cola se llama "Selección de <origen>". Una
+  cola de selección que ya reordenaste o editaste a mano no se pisa.
 - **Pantalla entera en gris con una canción sonando.** El degradado nuevo del
   minirreproductor (build 81) usaba `TweenAnimationBuilder` con un color
   final nulo cuando la carátula no daba un color usable o los colores

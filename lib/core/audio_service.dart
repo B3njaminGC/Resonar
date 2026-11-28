@@ -837,18 +837,28 @@ class AudioService {
     List<File> files,
     int initialIndex, {
     String? label,
+    String? sourceKey,
   }) async {
     RangeError.checkValidIndex(initialIndex, files, 'initialIndex');
-    await _enterSource(files, label: label);
+    await _enterSource(files, label: label, sourceKey: sourceKey);
     await _loadPlaylist(files, initialIndex);
   }
 
   /// Decide en qué cola cae [files]: la misma, otra que ya existe, o una nueva.
-  Future<void> _enterSource(List<File> files, {String? label}) async {
+  ///
+  /// Normalmente la lista se reconoce por sus canciones. [sourceKey] la
+  /// reconoce por otra cosa: una selección a mano usa "de dónde se eligió",
+  /// así una selección nueva de la misma lista reemplaza a la anterior.
+  Future<void> _enterSource(
+    List<File> files, {
+    String? label,
+    String? sourceKey,
+  }) async {
     final store = QueueStore.instance;
     final active = store.byId(store.activeId.value);
     if (active == null || files.isEmpty) return;
-    final source = fingerprintOf([for (final file in files) file.path]);
+    final source =
+        sourceKey ?? fingerprintOf([for (final file in files) file.path]);
     final names = [for (final queue in store.queues.value) queue.name];
 
     if (_queue.isEmpty) {
@@ -973,9 +983,13 @@ class AudioService {
 
   /// Reproduce [files] en orden aleatorio. La cola se baraja una sola vez y
   /// después queda fija: lo que ves en la cola es lo que va a sonar.
-  Future<void> playShuffled(List<File> files, {String? label}) async {
+  Future<void> playShuffled(
+    List<File> files, {
+    String? label,
+    String? sourceKey,
+  }) async {
     if (files.isEmpty) return;
-    await _enterSource(files, label: label);
+    await _enterSource(files, label: label, sourceKey: sourceKey);
     await _player.setShuffleModeEnabled(false);
     shuffleNotifier.value = true;
     _orderBeforeShuffle = List<File>.of(files);

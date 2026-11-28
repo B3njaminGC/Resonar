@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../core/audio_service.dart';
+import '../../../core/queue_store.dart';
 import '../../../library/favorites_repository.dart';
 import '../../../library/track_index.dart';
 import '../genre_dialogs.dart';
@@ -64,8 +65,15 @@ class TrackSelectionScope extends StatefulWidget {
     super.key,
     required this.tracks,
     required this.builder,
+    this.origin,
     this.extraActions = const [],
   });
+
+  /// De dónde son las canciones (nombre de la lista, del género…). Las
+  /// selecciones hechas en el mismo origen comparten una sola cola: elegir
+  /// otras canciones de la misma lista reemplaza la selección anterior en
+  /// vez de abrir una cola nueva.
+  final String? origin;
 
   final List<TrackInfo> tracks;
   final Widget Function(BuildContext context, TrackSelection selection)
@@ -103,6 +111,7 @@ class _TrackSelectionScopeState extends State<TrackSelectionScope> {
               if (_selection.active)
                 _SelectionBar(
                   selection: _selection,
+                  origin: widget.origin,
                   tracks: widget.tracks,
                   extraActions: widget.extraActions,
                 ),
@@ -119,11 +128,13 @@ enum _More { playNext, shuffle, favorite, genre, selectAll }
 class _SelectionBar extends StatelessWidget {
   const _SelectionBar({
     required this.selection,
+    required this.origin,
     required this.tracks,
     required this.extraActions,
   });
 
   final TrackSelection selection;
+  final String? origin;
   final List<TrackInfo> tracks;
   final List<SelectionAction> extraActions;
 
@@ -141,7 +152,12 @@ class _SelectionBar extends StatelessWidget {
       final files = _files();
       if (files.isEmpty) return;
       selection.clear();
-      await audio.setPlaylistAndPlay(files, 0, label: 'Selección');
+      await audio.setPlaylistAndPlay(
+        files,
+        0,
+        label: selectionLabelOf(origin),
+        sourceKey: selectionSourceOf(origin ?? ''),
+      );
     }
 
     Future<void> addToQueue() async {
@@ -185,7 +201,11 @@ class _SelectionBar extends StatelessWidget {
           say('Sonarán a continuación (${files.length}).');
         case _More.shuffle:
           selection.clear();
-          await audio.playShuffled(files, label: 'Selección');
+          await audio.playShuffled(
+            files,
+            label: selectionLabelOf(origin),
+            sourceKey: selectionSourceOf(origin ?? ''),
+          );
         case _More.favorite:
           final repo = FavoritesRepository.instance;
           var added = 0;
