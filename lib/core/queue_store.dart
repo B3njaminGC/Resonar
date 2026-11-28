@@ -21,6 +21,8 @@ class SavedQueue {
     this.loop = 'off',
     this.source = '',
     this.updatedMs = 0,
+    this.pinned = false,
+    this.edited = false,
   });
 
   final String id;
@@ -48,6 +50,14 @@ class SavedQueue {
   /// Cuándo se usó por última vez, para saber cuál sacar si hay demasiadas.
   final int updatedMs;
 
+  /// Fijada por la persona: nunca se saca sola.
+  final bool pinned;
+
+  /// Tocada a mano (se reordenó, se le quitó o agregó algo, se renombró):
+  /// es trabajo de la persona, así que se saca recién cuando no queda otra, y
+  /// no se pisa al volver a reproducir la lista de la que salió.
+  final bool edited;
+
   SavedQueue copyWith({
     String? name,
     List<String>? paths,
@@ -58,6 +68,8 @@ class SavedQueue {
     String? loop,
     String? source,
     int? updatedMs,
+    bool? pinned,
+    bool? edited,
   }) => SavedQueue(
     id: id,
     name: name ?? this.name,
@@ -69,6 +81,8 @@ class SavedQueue {
     loop: loop ?? this.loop,
     source: source ?? this.source,
     updatedMs: updatedMs ?? this.updatedMs,
+    pinned: pinned ?? this.pinned,
+    edited: edited ?? this.edited,
   );
 
   Map<String, Object> toMap() => {
@@ -82,6 +96,8 @@ class SavedQueue {
     'loop': loop,
     'source': source,
     'updatedMs': updatedMs,
+    'pinned': pinned,
+    'edited': edited,
   };
 
   /// Lee una cola guardada. Es tolerante a propósito: si falta un campo o
@@ -107,6 +123,8 @@ class SavedQueue {
       loop: raw['loop'] is String ? raw['loop'] as String : 'off',
       source: raw['source'] is String ? raw['source'] as String : '',
       updatedMs: number(raw['updatedMs']),
+      pinned: raw['pinned'] == true,
+      edited: raw['edited'] == true,
     );
   }
 }
@@ -157,15 +175,26 @@ String fingerprintOf(Iterable<String> paths) {
   return '$count:${hash.toRadixString(16)}';
 }
 
-/// La cola que menos se usó, para sacarla cuando ya hay demasiadas. Nunca la
-/// activa. `null` si no hay otra.
+/// La cola que menos se usó, para sacarla cuando ya hay demasiadas.
+///
+/// Nunca la activa ni las fijadas. Las que la persona tocó a mano se dejan
+/// para el final: solo se sacan si no queda ninguna sin tocar. `null` si no
+/// hay nada que se pueda sacar.
 String? queueToEvict(Iterable<SavedQueue> queues, String activeId) {
-  SavedQueue? oldest;
-  for (final queue in queues) {
-    if (queue.id == activeId) continue;
-    if (oldest == null || queue.updatedMs < oldest.updatedMs) oldest = queue;
+  SavedQueue? oldest(bool Function(SavedQueue queue) allowed) {
+    SavedQueue? found;
+    for (final queue in queues) {
+      if (!allowed(queue)) continue;
+      if (found == null || queue.updatedMs < found.updatedMs) found = queue;
+    }
+    return found;
   }
-  return oldest?.id;
+
+  final untouched = oldest(
+    (queue) => queue.id != activeId && !queue.pinned && !queue.edited,
+  );
+  return (untouched ?? oldest((queue) => queue.id != activeId && !queue.pinned))
+      ?.id;
 }
 
 /// Un identificador que no esté en [existing].
@@ -266,7 +295,14 @@ class QueueStore {
     final queue = byId(id);
     final clean = name.trim();
     if (queue == null || clean.isEmpty) return;
-    update(queue.copyWith(name: clean));
+    // Ponerle nombre es trabajo de la persona: pasa a contar como tocada.
+    update(queue.copyWith(name: clean, edited: true));
+  }
+
+  void togglePin(String id) {
+    final queue = byId(id);
+    if (queue == null) return;
+    update(queue.copyWith(pinned: !queue.pinned));
   }
 
   void remove(String id) {

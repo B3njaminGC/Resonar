@@ -47,11 +47,11 @@ le indiques y arma la biblioteca con las etiquetas de cada archivo.
   progreso y botón de favorita.
 - Cada lista que reproducís es su propia cola, con su canción, segundo,
   mezcla y bucle: nada se reemplaza, pasás de una a otra y sigue donde la
-  dejaste.
+  dejaste. Se pueden fijar para que nunca se borren solas.
 - Cola editable, aleatorio que mezcla una sola vez, repetición, velocidad de
   0,5× a 2× y temporizador de apagado.
 - Ecualizador propio con bandas, curvas listas y refuerzo de volumen.
-- La música baja un poco con una notificación y solo se pausa en una llamada, sin nada que configurar.
+- La música baja apenas con una notificación, queda de fondo si hay un video, y se pausa en una llamada, sin nada que configurar.
 - Retoma la última canción donde la dejaste.
 
 **Letras**

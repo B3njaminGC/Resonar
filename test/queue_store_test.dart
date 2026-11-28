@@ -154,9 +154,34 @@ void main() {
     });
   });
 
+  group('fijadas y tocadas a mano', () {
+    test('hacen ida y vuelta', () {
+      const queue = SavedQueue(id: 'q1', name: 'Gym', pinned: true, edited: true);
+      final back = SavedQueue.fromMap(queue.toMap())!;
+      expect(back.pinned, isTrue);
+      expect(back.edited, isTrue);
+    });
+
+    test('una cola vieja no viene ni fijada ni tocada', () {
+      final queue = SavedQueue.fromMap({'id': 'q1'})!;
+      expect(queue.pinned, isFalse);
+      expect(queue.edited, isFalse);
+    });
+  });
+
   group('queueToEvict', () {
-    SavedQueue q(String id, int ms) =>
-        SavedQueue(id: id, name: id, updatedMs: ms);
+    SavedQueue q(
+      String id,
+      int ms, {
+      bool pinned = false,
+      bool edited = false,
+    }) => SavedQueue(
+      id: id,
+      name: id,
+      updatedMs: ms,
+      pinned: pinned,
+      edited: edited,
+    );
 
     test('saca la que hace más que no se usa', () {
       expect(queueToEvict([q('a', 30), q('b', 10), q('c', 20)], 'a'), 'b');
@@ -164,6 +189,38 @@ void main() {
 
     test('nunca saca la activa, aunque sea la más vieja', () {
       expect(queueToEvict([q('a', 1), q('b', 10), q('c', 20)], 'a'), 'b');
+    });
+
+    test('nunca saca una fijada, aunque sea la más vieja', () {
+      expect(
+        queueToEvict([q('a', 30), q('b', 1, pinned: true), q('c', 20)], 'a'),
+        'c',
+      );
+    });
+
+    test('las tocadas a mano se dejan para el final', () {
+      // La más vieja fue editada: se saca la siguiente, que está sin tocar.
+      expect(
+        queueToEvict([q('a', 30), q('b', 1, edited: true), q('c', 20)], 'a'),
+        'c',
+      );
+    });
+
+    test('si todas las demás fueron tocadas, se saca la más vieja de ellas', () {
+      expect(
+        queueToEvict(
+          [q('a', 30), q('b', 5, edited: true), q('c', 2, edited: true)],
+          'a',
+        ),
+        'c',
+      );
+    });
+
+    test('si todas las demás están fijadas, no se saca ninguna', () {
+      expect(
+        queueToEvict([q('a', 30), q('b', 1, pinned: true)], 'a'),
+        isNull,
+      );
     });
 
     test('si no hay otra, no saca nada', () {

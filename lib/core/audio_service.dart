@@ -47,8 +47,9 @@ bool looksStuckAtEnd({
   return duration - position <= const Duration(seconds: 2);
 }
 
-/// Volumen (0 a 1) mientras suena una notificación, a partir del porcentaje
-/// que se baja según Ajustes: 40 % de bajada son 0,6 de volumen.
+/// Volumen (0 a 1) que queda al bajar [percent] por ciento: 15 de bajada son
+/// 0,85 de volumen, y 75 de bajada son 0,25. Ojo: el porcentaje es cuánto se
+/// **baja**, no el volumen que queda.
 double duckFactorFor(int percent) => 1.0 - percent.clamp(0, 100) / 100;
 
 /// Si una interrupción terminó **antes** de que se tocara el volumen.
@@ -65,6 +66,37 @@ bool endedBeforeDucking({
   required double duckFactor,
   required bool ramping,
 }) => delayPending && duckFactor >= 1.0 && !ramping;
+
+/// Hasta cuánto puede durar una pausa por interrupción (una llamada) para que
+/// la música arranque sola al terminar. Pasado esto, la persona ya se fue a
+/// otra cosa y que suene de golpe sería una sorpresa: queda en pausa.
+const Duration resumeAfterInterruptionWithin = Duration(minutes: 2);
+
+bool shouldResumeAfterInterruption(Duration? lasted) =>
+    lasted == null || lasted <= resumeAfterInterruptionWithin;
+
+/// Dónde va la próxima canción puesta "a continuación".
+///
+/// Si se ponen varias seguidas, cada una va **después de la anterior** y no
+/// delante: quedan en el orden en que se eligieron. [anchor] es la pista
+/// actual la última vez que se puso una, y [ahead] cuántas de las puestas
+/// entonces siguen por delante de la actual (si ya se pasó a alguna, ya no).
+/// Si la cola cambió de otra forma (se pasó de largo, se reordenó), se
+/// empieza de cero y va justo después de la actual.
+({int index, int ahead}) playNextSlot({
+  required int current,
+  required int anchor,
+  required int ahead,
+  required int length,
+}) {
+  var pending = 0;
+  if (anchor >= 0) {
+    final moved = current - anchor;
+    if (moved >= 0 && moved <= ahead) pending = ahead - moved;
+  }
+  final index = current + 1 + pending;
+  return (index: index > length ? length : index, ahead: pending + 1);
+}
 
 /// Convierte el modo de bucle guardado en Ajustes al del reproductor.
 ///
@@ -253,6 +285,33 @@ class AudioService {
   /// canción desaparezca.
   static final double _duckedFactor = duckFactorFor(15);
 
+  /// Pasado este tiempo, la interrupción ya no es una notificación: es un
+  /// video, un audio largo u otra app de música.
+  ///
+  /// Con la bajada suave (que es para una notificación) el video y la canción
+  /// se oían a la par, porque la canción seguía al 85 %. En el registro de un
+  /// teléfono real, un video con sonido fue una interrupción de 70 segundos y
+  /// la música casi no se movió. Si dura tanto, la música baja bastante más y
+  /// el video se impone, pero se sigue oyendo de fondo.
+  static const Duration _deepenAfter = Duration(seconds: 5);
+  static final double _deepDuckedFactor = duckFactorFor(75);
+
+  /// Cuánto se espera para devolver el volumen cuando termina una
+  /// interrupción. Las apps de video piden el audio y lo sueltan en cada video
+  /// (un registro mostró pausas de 0,2 s entre uno y otro): sin esta espera la
+  /// música subía y bajaba a cada video.
+  static const Duration _restoreAfter = Duration(milliseconds: 1200);
+
+  /// Para que varias canciones puestas "a continuación" queden en orden
+  /// (ver [playNextSlot]).
+  int _playNextAnchor = -1;
+  int _playNextAhead = 0;
+
+  /// `true` mientras la música está agachada por una interrupción.
+  bool _ducking = false;
+  Timer? _deepenTimer;
+  Timer? _restoreDelay;
+
   /// Pregunta cada tanto si apareció una llamada mientras hay una
   /// interrupción en curso.
   Timer? _callWatch;
@@ -355,6 +414,24 @@ class AudioService {
     await _startPlayback();
   }
 
+  /// Devuelve la música a su volumen y deja todo listo para la próxima
+  /// interrupción.
+  void _restoreVolume() {
+    _restoreDelay?.cancel();
+    _restoreDelay = null;
+    _deepenTimer?.cancel();
+    _deepenTimer = null;
+    _duckTimer?.cancel();
+    _duckTimer = null;
+    if (_duckFactor < 1.0) {
+      AudioLog.add(
+        'vuelve el volumen (estaba al ${(_duckFactor * 100).round()} %)',
+      );
+    }
+    _ducking = false;
+    _rampDuckTo(1.0);
+  }
+
   /// Qué hacer cuando otra app pide el audio.
   ///
   /// La teoría dice que Android avisa distinto según el caso: `duck` para un
@@ -391,7 +468,6 @@ class AudioService {
       );
       _duckDelay?.cancel();
       _duckDelay = null;
-      _duckTimer?.cancel();
       _callWatch?.cancel();
       _callWatch = null;
       if (wasIgnored) {
@@ -400,16 +476,25 @@ class AudioService {
         AudioLog.add('sonido corto: no se bajó el volumen');
         return;
       }
-      if (_duckFactor < 1.0) {
-        AudioLog.add(
-          'vuelve el volumen (estaba al ${(_duckFactor * 100).round()} %)',
-        );
+      if (_ducking && !_pausedByInterruption) {
+        // No se sube enseguida: si arranca otro video pegado a este, la
+        // música seguiría agachada sin ir y venir.
+        _restoreDelay?.cancel();
+        _restoreDelay = Timer(_restoreAfter, _restoreVolume);
+      } else {
+        _restoreVolume();
       }
-      _rampDuckTo(1.0);
       if (_pausedByInterruption) {
         _pausedByInterruption = false;
-        AudioLog.add('sigue la música: terminó la interrupción');
-        unawaited(_startPlayback());
+        if (shouldResumeAfterInterruption(lasted)) {
+          AudioLog.add('sigue la música: terminó la interrupción');
+          unawaited(_startPlayback());
+        } else {
+          AudioLog.add(
+            'no se retoma sola: la interrupción duró '
+            '${lasted!.inMinutes} min',
+          );
+        }
       }
       return;
     }
@@ -431,16 +516,28 @@ class AudioService {
     // una bajada, así que bajar y subir enseguida se oye como un tropezón por
     // algo que ya pasó. Si la interrupción no sigue viva cuando venza esta
     // espera, no se bajó nada y no hubo nada que notar.
-    _duckDelay?.cancel();
-    _duckDelay = Timer(_duckAfter, () {
-      _duckDelay = null;
-      _rampDuckTo(_duckedFactor);
-      _duckTimer?.cancel();
-      _duckTimer = Timer(_maxDuckDuration, () {
-        AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
-        _rampDuckTo(1.0);
+    // Pegada a la anterior (varios videos seguidos): la música sigue agachada,
+    // no hay que esperar de nuevo ni haber vuelto a subir.
+    _restoreDelay?.cancel();
+    _restoreDelay = null;
+    if (!_ducking) {
+      _duckDelay?.cancel();
+      _duckDelay = Timer(_duckAfter, () {
+        _duckDelay = null;
+        _ducking = true;
+        _rampDuckTo(_duckedFactor);
+        _deepenTimer?.cancel();
+        _deepenTimer = Timer(_deepenAfter, () {
+          AudioLog.add('interrupción larga: la música baja más');
+          _rampDuckTo(_deepDuckedFactor);
+        });
+        _duckTimer?.cancel();
+        _duckTimer = Timer(_maxDuckDuration, () {
+          AudioLog.add('no llegó el fin de la interrupción: vuelve el volumen');
+          _restoreVolume();
+        });
       });
-    });
+    }
 
     // La llamada no espera: se pregunta desde el primer momento.
     _watchForCall();
@@ -763,16 +860,23 @@ class AudioService {
               ? uniqueQueueName(label, names)
               : null,
           updatedMs: DateTime.now().millisecondsSinceEpoch,
+          edited: false,
         ),
       );
       return;
     }
-    if (active.source == source) return; // la misma lista: la misma cola
+    if (active.source == source) {
+      // La misma lista: la misma cola. Su contenido se repone entero, así que
+      // vuelve a contar como sin tocar.
+      if (active.edited) store.update(active.copyWith(edited: false));
+      return;
+    }
 
     _parkActive();
     SavedQueue? existing;
     for (final queue in store.queues.value) {
-      if (queue.source == source && queue.id != active.id) {
+      // Una cola que la persona tocó a mano no se pisa con la lista original.
+      if (queue.source == source && queue.id != active.id && !queue.edited) {
         existing = queue;
         break;
       }
@@ -817,6 +921,7 @@ class AudioService {
     bool autoplay = true,
   }) async {
     RangeError.checkValidIndex(initialIndex, files, 'initialIndex');
+    _playNextAnchor = -1;
     final queueId = ++_queueId;
     _consecutiveErrors = 0;
     playbackErrorNotifier.value = null;
@@ -894,10 +999,22 @@ class AudioService {
     await ArtworkCache.ensure([file.path]);
     if (queueId != _queueId) return;
 
-    final index = atEnd
-        ? _queue.length
-        : math.min(_currentIndex + 1, _queue.length);
+    int index;
+    if (atEnd) {
+      index = _queue.length;
+    } else {
+      final slot = playNextSlot(
+        current: _currentIndex,
+        anchor: _playNextAnchor,
+        ahead: _playNextAhead,
+        length: _queue.length,
+      );
+      index = slot.index;
+      _playNextAnchor = _currentIndex;
+      _playNextAhead = slot.ahead;
+    }
     _queue.insert(index, file);
+    _markQueueEdited();
     queueNotifier.value = List<File>.unmodifiable(_queue);
     _persistQueue();
     try {
@@ -922,6 +1039,8 @@ class AudioService {
     // La lista visible se actualiza antes del primer `await` para que
     // `Dismissible` no se quede con un elemento fantasma.
     _queue.removeAt(index);
+    _playNextAnchor = -1;
+    _markQueueEdited();
     queueNotifier.value = List<File>.unmodifiable(_queue);
     _persistQueue();
     try {
@@ -981,6 +1100,8 @@ class AudioService {
     }
     final file = _queue.removeAt(oldIndex);
     _queue.insert(newIndex, file);
+    _playNextAnchor = -1;
+    _markQueueEdited();
     queueNotifier.value = List<File>.unmodifiable(_queue);
     _persistQueue();
     await source.move(oldIndex, newIndex);
@@ -1009,6 +1130,16 @@ class AudioService {
     loop: loopNotifier.value.name,
     updatedMs: DateTime.now().millisecondsSinceEpoch,
   );
+
+  /// Anota que la persona tocó a mano la cola que suena (ver
+  /// [SavedQueue.edited]).
+  void _markQueueEdited() {
+    final store = QueueStore.instance;
+    final active = store.byId(store.activeId.value);
+    if (active != null && !active.edited) {
+      store.update(active.copyWith(edited: true));
+    }
+  }
 
   /// Vuelca la cola viva a su lugar en [QueueStore], antes de cambiar a otra.
   void _parkActive() {
@@ -1155,6 +1286,11 @@ class AudioService {
     _duckRamp?.cancel();
     _duckDelay?.cancel();
     _duckDelay = null;
+    _deepenTimer?.cancel();
+    _deepenTimer = null;
+    _restoreDelay?.cancel();
+    _restoreDelay = null;
+    _ducking = false;
     _duckFactor = 1.0;
     unawaited(_applyVolume(force: true));
     unawaited(_raiseVolumeIfMuted());
@@ -1291,6 +1427,7 @@ class AudioService {
   /// Devuelve `false` si no había nada cargado y hay que armar la cola de
   /// cero.
   Future<bool> _reorderInPlace(List<File> next, int index) async {
+    _playNextAnchor = -1;
     final source = _source;
     final playing = _player.currentIndex;
     if (source == null || playing == null || _queue.isEmpty) return false;

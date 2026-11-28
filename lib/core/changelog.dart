@@ -29,6 +29,26 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 77,
+      title: 'Los videos ya no compiten con la música',
+      news: [
+        'Si un video u otra app tiene el audio más de 5 segundos, la música '
+            'baja bastante más y queda de fondo. Una notificación sigue '
+            'bajándola apenas.',
+        'Podés fijar una cola: mantenela apretada y tocá "Fijar cola". Las '
+            'fijadas, y las que armaste o editaste a mano, son las últimas '
+            'que se borran cuando hay muchas.',
+        'Después de una llamada de más de 2 minutos, la música ya no arranca '
+            'sola de golpe: queda en pausa.',
+      ],
+      fixes: [
+        '"Reproducir siguiente" en varias canciones las dejaba al revés. '
+            'Ahora quedan en el orden en que las elegiste.',
+        'Entre un video y el siguiente, la música ya no sube y baja de '
+            'volumen: espera un momento antes de volver.',
+      ],
+    ),
+    ChangelogEntry(
       build: 76,
       title: 'La canción ya no vuelve a todo volumen en medio de un video',
       fixes: [
@@ -55,7 +75,7 @@ class Changelog {
       title: 'La música ya no queda baja después de un video',
       fixes: [
         'Si una app de video pedía el audio varias veces seguidas, la música '
-            'podía quedar al 15 % para siempre aunque siguiera sonando. Ahora '
+            'podía quedar más baja para siempre aunque siguiera sonando. Ahora '
             'el volumen siempre vuelve cuando termina la interrupción.',
       ],
     ),

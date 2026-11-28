@@ -10,6 +10,21 @@ versión de la app.
 ## [No publicado]
 
 ### Añadido
+- **Los videos ya no compiten con la música.** La bajada suave del volumen
+  (15 %, pensada para una notificación) dejaba la canción al 85 % durante un
+  video con sonido: el registro de un teléfono real mostró una interrupción
+  de 70 s y la música casi no se movía. Ahora, si la interrupción pasa de 5 s,
+  la música baja un 75 % y queda de fondo (`_deepenAfter`). Al terminar, el
+  volumen espera 1,2 s antes de volver, porque las apps de video lo sueltan y
+  lo piden de nuevo entre un video y otro, y la música subía y bajaba a cada
+  uno.
+- **Colas fijadas.** Mantener apretada una cola y tocar *Fijar cola*: nunca se
+  borra sola. Las que la persona tocó a mano (renombrar, reordenar, agregar o
+  quitar canciones) se dejan para el final cuando hay que sacar alguna, y no
+  se pisan al reproducir de nuevo la lista de la que salieron.
+- **No reanudar tras una interrupción larga.** Si una llamada duró más de
+  2 minutos, la música queda en pausa al terminar en vez de arrancar sola
+  (`shouldResumeAfterInterruption`).
 - **Cada lista que reproducís es su propia cola.** Antes había una sola cola
   y reproducir otra cosa la reemplazaba. Ahora cada origen (tu lista, la
   biblioteca, un álbum, una selección, la búsqueda...) es una cola
@@ -23,13 +38,16 @@ versión de la app.
   `AudioService.setPlaylistAndPlay` / `_enterSource`.
 
 ### Corregido
+- **"Reproducir siguiente" invertía el orden.** Al usarlo en varias canciones,
+  cada una se metía delante de la anterior. Ahora quedan en el orden en que se
+  eligieron (`playNextSlot`).
 - **La canción volvía a todo volumen en medio de un video.** Un video con
   sonido es una sola interrupción de audio que dura medio minuto o más, pero
   la red de seguridad que devolvía el volumen si Android no avisaba el fin
   saltaba a los 6 segundos. El registro de un teléfono real lo mostró: el aviso
   de fin llegó 45 s después de empezar. El tope pasa a 10 minutos, y solo
   existe para el caso en que Android no avise nunca.
-- **La música podía quedar al 15 % para siempre después de un video.** Si una
+- **La música podía quedar más baja para siempre después de un video.** Si una
   app pedía el audio dos veces seguidas, la segunda interrupción armaba una
   espera nueva y, al terminar enseguida, se la tomaba por un sonido corto sin
   devolver el volumen que había bajado la primera. Ahora el volumen se
@@ -50,7 +68,7 @@ versión de la app.
 
 ### Quitado
 - *Ajustes → Sonido → Bajar el volumen con notificaciones*. El volumen pasa a
-  ser fijo (15 %, un poco menos que antes) en `_duckedFactor`. Es un detalle
+  ser fijo (una bajada de 15 %, un poco menos que antes) en `_duckedFactor`. Es un detalle
   con una sola respuesta razonable y nadie entra a Ajustes a elegir un
   porcentaje; pedido explícito del usuario.
 

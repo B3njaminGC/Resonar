@@ -61,12 +61,12 @@ permisos ni red:
 | `presets_test.dart` | curvas del ecualizador, colores de acento y modos de tema |
 | `search_test.dart` | texto buscable de una canción y coincidencias del buscador |
 | `library_watcher_test.dart` | cuándo un cambio de estado de la app amerita revisar la biblioteca |
-| `session_test.dart` | el modo de bucle guardado se lee igual que se escribió, y el volumen con notificaciones |
+| `session_test.dart` | el modo de bucle guardado se lee igual que se escribió, el volumen con notificaciones, cuándo se retoma tras una interrupción y el orden de "reproducir siguiente" |
 | `stall_test.dart` | cuándo se considera que el reproductor se trabó al final de la pista |
-| `queue_store_test.dart` | guardar y leer una cola (tolerante a datos rotos), huella de la lista de origen, nombres automáticos y qué cola sacar al llegar al tope |
+| `queue_store_test.dart` | guardar y leer una cola (tolerante a datos rotos), huella de la lista de origen, nombres automáticos y qué cola sacar al llegar al tope (sin tocar fijadas ni editadas) |
 
 **Lo que no está cubierto** y hay que probar a mano en un teléfono:
-que cada origen distinto cree su propia cola, volver a la de una lista ya reproducida y cambiar de cola retomando canción y segundo; reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de
+que cada origen distinto cree su propia cola, volver a la de una lista ya reproducida y cambiar de cola retomando canción y segundo, la bajada de volumen con videos; reproducción, notificación y pantalla de bloqueo, widgets, permisos, escaneo de
 carpetas reales, lectura de etiquetas, ecualizador, Bluetooth y botones de
 auriculares, el foco de audio (qué pasa cuando entra una notificación o una
 llamada), y la descarga e instalación de actualizaciones.

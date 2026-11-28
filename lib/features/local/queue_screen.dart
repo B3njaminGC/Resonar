@@ -207,6 +207,9 @@ class _QueueSwitcher extends StatelessWidget {
                     child: GestureDetector(
                       onLongPress: () => _showMenu(context, queue),
                       child: ChoiceChip(
+                        avatar: queue.pinned
+                            ? const Icon(Icons.push_pin, size: 16)
+                            : null,
                         selected: queue.id == activeId,
                         label: ConstrainedBox(
                           constraints: const BoxConstraints(maxWidth: 170),
@@ -259,6 +262,18 @@ class _QueueSwitcher extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
+              leading: Icon(
+                queue.pinned ? Icons.push_pin : Icons.push_pin_outlined,
+              ),
+              title: Text(queue.pinned ? 'Soltar cola' : 'Fijar cola'),
+              subtitle: Text(
+                queue.pinned
+                    ? 'Vuelve a poder borrarse sola si hay muchas'
+                    : 'Nunca se borra sola',
+              ),
+              onTap: () => Navigator.pop(sheet, 'pin'),
+            ),
+            ListTile(
               leading: const Icon(Icons.edit_outlined),
               title: const Text('Cambiar nombre'),
               onTap: () => Navigator.pop(sheet, 'rename'),
@@ -273,7 +288,9 @@ class _QueueSwitcher extends StatelessWidget {
       ),
     );
     if (!context.mounted || choice == null) return;
-    if (choice == 'rename') {
+    if (choice == 'pin') {
+      QueueStore.instance.togglePin(queue.id);
+    } else if (choice == 'rename') {
       await _rename(context, queue);
     } else {
       await _delete(context, queue);
