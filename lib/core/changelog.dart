@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 79,
+      title: 'Pestañas de la biblioteca renovadas',
+      news: [
+        'Las pestañas de arriba (Canciones, Favoritas, Listas…) ahora son '
+            'cápsulas: la elegida queda resaltada, sin la rayita de abajo, y '
+            'con letra en minúsculas, más fácil de leer.',
+      ],
+    ),
+    ChangelogEntry(
       build: 78,
       title: 'Instalar actualizaciones ya no depende de un solo plugin',
       fixes: [

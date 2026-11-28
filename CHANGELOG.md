@@ -10,6 +10,9 @@ versión de la app.
 ## [No publicado]
 
 ### Añadido
+- **Pestañas de la biblioteca renovadas.** Las de arriba (Canciones,
+  Favoritas, Listas…) pasan a ser cápsulas: la elegida queda resaltada, sin
+  la rayita de abajo ni la línea divisoria, y con letra en minúsculas.
 - **Los videos ya no compiten con la música.** La bajada suave del volumen
   (15 %, pensada para una notificación) dejaba la canción al 85 % durante un
   video con sonido: el registro de un teléfono real mostró una interrupción
