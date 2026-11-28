@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../screens/now_playing_screen.dart';
+import '../../theme/art_palette.dart';
+import '../../theme/art_tint.dart';
+import '../app_settings.dart';
 import '../audio_service.dart';
 import 'track_artwork.dart';
 import '../../theme/accent.dart';
@@ -14,6 +17,7 @@ class MiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final audioService = AudioService();
+    ArtTint.instance.start();
 
     return ValueListenableBuilder<String?>(
       valueListenable: audioService.titleNotifier,
@@ -32,12 +36,59 @@ class MiniPlayer extends StatelessWidget {
             }
             final isPlaying = state.playing;
 
-            return Material(
-              color: Theme.of(context).cardColor,
-              elevation: 8,
-              child: SizedBox(
-                height: 68,
-                child: Row(
+            final theme = Theme.of(context);
+            final isDark = theme.brightness == Brightness.dark;
+            return ValueListenableBuilder<Color?>(
+              valueListenable: ArtTint.instance.color,
+              builder: (context, artColor, _) {
+                // El mismo color de la carátula que tiñe "Sonando", si está
+                // activado en Ajustes.
+                final tint = AppSettings.instance.dynamicColors
+                    ? ArtPalette.adapt(artColor, theme.brightness)
+                    : null;
+                return TweenAnimationBuilder<Color?>(
+                  tween: ColorTween(end: tint),
+                  duration: const Duration(milliseconds: 600),
+                  builder: (context, color, child) => Material(
+                    color: theme.cardColor,
+                    elevation: 8,
+                    // Ink y no un Container: así el toque sigue dibujando su
+                    // ondita por encima del degradado.
+                    child: Ink(
+                      height: 68,
+                      decoration: BoxDecoration(
+                        gradient: color == null
+                            ? null
+                            : LinearGradient(
+                                begin: Alignment.centerLeft,
+                                end: Alignment.centerRight,
+                                colors: [
+                                  color.withValues(alpha: isDark ? 0.5 : 0.32),
+                                  theme.cardColor,
+                                ],
+                              ),
+                      ),
+                      child: child,
+                    ),
+                  ),
+                  child: _buildRow(context, audioService, title, isPlaying, tint),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildRow(
+    BuildContext context,
+    AudioService audioService,
+    String title,
+    bool isPlaying,
+    Color? tint,
+  ) {
+    return Row(
                   children: [
                     Expanded(
                       child: InkWell(
@@ -102,7 +153,7 @@ class MiniPlayer extends StatelessWidget {
                       onPressed: audioService.playPause,
                       icon: Icon(
                         isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: context.accent,
+                        color: tint ?? context.accent,
                         size: 30,
                       ),
                     ),
@@ -113,12 +164,6 @@ class MiniPlayer extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                   ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
+                );
   }
 }

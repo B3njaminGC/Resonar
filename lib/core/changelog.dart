@@ -29,6 +29,16 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 81,
+      title: 'El minirreproductor se tiñe con la carátula',
+      news: [
+        'La barrita de abajo donde ves lo que suena toma el color de la '
+            'carátula, con el mismo degradado que "Sonando", y el botón de '
+            'pausa también. Si apagaste los colores dinámicos en Ajustes, '
+            'queda como antes.',
+      ],
+    ),
+    ChangelogEntry(
       build: 79,
       title: 'Barra de arriba con tu color y que se esconde',
       news: [

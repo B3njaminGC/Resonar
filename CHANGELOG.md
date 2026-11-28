@@ -10,6 +10,9 @@ versión de la app.
 ## [No publicado]
 
 ### Añadido
+- **El minirreproductor se tiñe con la carátula.** La barrita de abajo toma
+  el color de la carátula (el mismo cálculo y degradado que "Sonando") y
+  cambia con una transición suave. Respeta el ajuste de colores dinámicos.
 - **Barra de arriba con el color de acento y que se esconde.** Las barras
   (menú y título, y las de cada pantalla) toman el color de acento también en
   modo oscuro, y la del título desaparece al bajar por una lista y vuelve al
