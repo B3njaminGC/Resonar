@@ -262,15 +262,19 @@ class AudioService {
   DateTime _lastManualPause = DateTime.fromMillisecondsSinceEpoch(0);
   DateTime _lastAutoPlay = DateTime.fromMillisecondsSinceEpoch(0);
 
-  /// Lo máximo que la música puede quedar baja por una notificación.
+  /// Lo máximo que la música puede quedar baja esperando el fin de una
+  /// interrupción.
   ///
   /// Red de seguridad, no el mecanismo normal: el volumen vuelve cuando
-  /// Android avisa que terminó la interrupción. Pero si ese aviso no llega
-  /// —y hay teléfonos en los que no llega— la música quedaba baja para
-  /// siempre, sin forma de recuperarla salvo reiniciando la app. Una
-  /// notificación nunca dura tanto, así que a los seis segundos se vuelve
-  /// igual.
-  static const Duration _maxDuckDuration = Duration(seconds: 6);
+  /// Android avisa que terminó. Pero si ese aviso no llegara nunca, la música
+  /// quedaría baja para siempre, así que pasado este tiempo se vuelve igual.
+  ///
+  /// Antes eran seis segundos, pensando solo en notificaciones, y fue un error:
+  /// un video con sonido es una sola interrupción de medio minuto o más, y a
+  /// los seis segundos la canción volvía a todo volumen por encima del video
+  /// (el registro mostraba el aviso de fin 45 segundos después). Android sí
+  /// avisa el fin; este tope solo existe para el caso raro en que no.
+  static const Duration _maxDuckDuration = Duration(minutes: 10);
 
   /// Baja o sube el volumen de a poco en vez de un salto.
   ///

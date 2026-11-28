@@ -23,6 +23,12 @@ versión de la app.
   `AudioService.setPlaylistAndPlay` / `_enterSource`.
 
 ### Corregido
+- **La canción volvía a todo volumen en medio de un video.** Un video con
+  sonido es una sola interrupción de audio que dura medio minuto o más, pero
+  la red de seguridad que devolvía el volumen si Android no avisaba el fin
+  saltaba a los 6 segundos. El registro de un teléfono real lo mostró: el aviso
+  de fin llegó 45 s después de empezar. El tope pasa a 10 minutos, y solo
+  existe para el caso en que Android no avise nunca.
 - **La música podía quedar al 15 % para siempre después de un video.** Si una
   app pedía el audio dos veces seguidas, la segunda interrupción armaba una
   espera nueva y, al terminar enseguida, se la tomaba por un sonido corto sin

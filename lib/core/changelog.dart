@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 76,
+      title: 'La canción ya no vuelve a todo volumen en medio de un video',
+      fixes: [
+        'Con un video con sonido, la música bajaba bien pero a los 6 segundos '
+            'volvía a su volumen y se oía por encima del video. Ahora se '
+            'queda baja hasta que el video suelta el audio.',
+      ],
+    ),
+    ChangelogEntry(
       build: 75,
       title: 'Cada lista que reproducís es su propia cola',
       news: [
