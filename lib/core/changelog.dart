@@ -30,8 +30,11 @@ class Changelog {
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
       build: 79,
-      title: 'Pestañas de la biblioteca renovadas',
+      title: 'Barra de arriba con tu color y que se esconde',
       news: [
+        'La barra de arriba (menú y título) ahora usa el color de acento que '
+            'elegiste, también en modo oscuro, y se esconde al bajar por una '
+            'lista: vuelve apenas subís un poquito.',
         'Las pestañas de arriba (Canciones, Favoritas, Listas…) ahora son '
             'cápsulas: la elegida queda resaltada, sin la rayita de abajo, y '
             'con letra en minúsculas, más fácil de leer.',

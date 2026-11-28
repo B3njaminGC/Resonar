@@ -63,6 +63,7 @@ permisos ni red:
 | `library_watcher_test.dart` | cuándo un cambio de estado de la app amerita revisar la biblioteca |
 | `session_test.dart` | el modo de bucle guardado se lee igual que se escribió, el volumen con notificaciones, cuándo se retoma tras una interrupción y el orden de "reproducir siguiente" |
 | `stall_test.dart` | cuándo se considera que el reproductor se trabó al final de la pista |
+| `header_visibility_test.dart` | cuándo la barra del título se esconde o vuelve al desplazar |
 | `update_installer_test.dart` | cómo se traducen las respuestas del instalador propio a mensajes |
 | `queue_store_test.dart` | guardar y leer una cola (tolerante a datos rotos), huella de la lista de origen, nombres automáticos y qué cola sacar al llegar al tope (sin tocar fijadas ni editadas) |
 

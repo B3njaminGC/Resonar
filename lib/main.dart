@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/app_settings.dart';
 import 'core/artwork_cache.dart';
+import 'core/header_visibility.dart';
 import 'core/audio_service.dart';
 import 'core/audio_outputs.dart';
 import 'core/widget_bridge.dart';
@@ -156,6 +158,9 @@ class _MainContainerState extends State<MainContainer>
   late bool _showOnboarding;
   int _currentIndex = 0;
 
+  /// La barra con el título se esconde al bajar por una lista y vuelve al subir.
+  bool _headerVisible = true;
+
   @override
   void initState() {
     super.initState();
@@ -210,7 +215,12 @@ class _MainContainerState extends State<MainContainer>
     final action = await WidgetBridge.takeAction();
     if (action == null) return;
     final tab = await WidgetBridge.runAction(action);
-    if (tab != null && mounted) setState(() => _currentIndex = tab);
+    if (tab != null && mounted) {
+      setState(() {
+        _currentIndex = tab;
+        _headerVisible = true;
+      });
+    }
   }
 
   Future<void> _askNotificationPermission() async {
@@ -326,6 +336,84 @@ class _MainContainerState extends State<MainContainer>
     );
   }
 
+  /// Esconde la barra al bajar por una lista y la devuelve al subir o al
+  /// llegar arriba. Solo mira las listas verticales con bastante para
+  /// recorrer: si la lista es corta, esconder la barra la dejaría sin
+  /// scroll y la barra empezaría a parpadear.
+  bool _onScroll(ScrollNotification notification) {
+    if (notification.metrics.axis != Axis.vertical) return false;
+    if (notification is! ScrollUpdateNotification) return false;
+    final metrics = notification.metrics;
+    final delta = notification.scrollDelta ?? 0;
+    final visible = headerVisibilityFor(
+      pixels: metrics.pixels,
+      maxScrollExtent: metrics.maxScrollExtent,
+      delta: delta,
+      alwaysVisible: _currentIndex == _nowPlayingTab,
+    );
+    if (visible != null && visible != _headerVisible && mounted) {
+      setState(() => _headerVisible = visible);
+    }
+    return false;
+  }
+
+  /// Barra de arriba con el menú y el título. Mide lo mismo de siempre, pero
+  /// la parte del título se pliega con una animación.
+  Widget _buildHeader(BuildContext context) {
+    final theme = Theme.of(context);
+    final bar = theme.appBarTheme.backgroundColor ?? context.accent;
+    final foreground = theme.appBarTheme.foregroundColor ?? Colors.white;
+    final iconsDark = ThemeData.estimateBrightnessForColor(bar) == Brightness.light;
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: iconsDark ? Brightness.dark : Brightness.light,
+        statusBarBrightness: iconsDark ? Brightness.light : Brightness.dark,
+      ),
+      child: Material(
+        color: bar,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(height: MediaQuery.paddingOf(context).top),
+            ClipRect(
+              child: AnimatedAlign(
+                alignment: Alignment.topCenter,
+                heightFactor: _headerVisible ? 1 : 0,
+                duration: const Duration(milliseconds: 180),
+                curve: Curves.easeOut,
+                child: SizedBox(
+                  height: kToolbarHeight,
+                  child: Row(
+                    children: [
+                      const SizedBox(width: 4),
+                      Builder(
+                        builder: (context) => IconButton(
+                          icon: const Icon(Icons.menu),
+                          color: foreground,
+                          tooltip: 'Menú',
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Resonar',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: foreground,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_showOnboarding) {
@@ -344,21 +432,14 @@ class _MainContainerState extends State<MainContainer>
     return PopScope(
       canPop: _currentIndex == 0,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) setState(() => _currentIndex = 0);
+        if (!didPop) {
+          setState(() {
+            _currentIndex = 0;
+            _headerVisible = true;
+          });
+        }
       },
       child: Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Resonar',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.of(context).openDrawer(),
-          ),
-        ),
-      ),
       drawer: Drawer(
         child: ListView(
           padding: EdgeInsets.zero,
@@ -416,7 +497,21 @@ class _MainContainerState extends State<MainContainer>
           ],
         ),
       ),
-      body: SafeArea(child: screens[_currentIndex]),
+      body: Column(
+        children: [
+          _buildHeader(context),
+          Expanded(
+            child: MediaQuery.removePadding(
+              context: context,
+              removeTop: true,
+              child: NotificationListener<ScrollNotification>(
+                onNotification: _onScroll,
+                child: SafeArea(top: false, child: screens[_currentIndex]),
+              ),
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: SafeArea(
         top: false,
         child: Column(
@@ -425,7 +520,10 @@ class _MainContainerState extends State<MainContainer>
             if (_currentIndex != _nowPlayingTab) const MiniPlayer(),
             BottomNavigationBar(
               currentIndex: _currentIndex,
-              onTap: (index) => setState(() => _currentIndex = index),
+              onTap: (index) => setState(() {
+                _currentIndex = index;
+                _headerVisible = true;
+              }),
               type: BottomNavigationBarType.fixed,
               selectedItemColor: context.accent,
               unselectedItemColor: Colors.grey,

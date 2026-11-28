@@ -10,6 +10,10 @@ versión de la app.
 ## [No publicado]
 
 ### Añadido
+- **Barra de arriba con el color de acento y que se esconde.** Las barras
+  (menú y título, y las de cada pantalla) toman el color de acento también en
+  modo oscuro, y la del título desaparece al bajar por una lista y vuelve al
+  subir. En Sonando siempre se ve, y una lista corta no la esconde.
 - **Pestañas de la biblioteca renovadas.** Las de arriba (Canciones,
   Favoritas, Listas…) pasan a ser cápsulas: la elegida queda resaltada, sin
   la rayita de abajo ni la línea divisoria, y con letra en minúsculas.

@@ -111,7 +111,6 @@ class AppThemeController extends ChangeNotifier {
       brightness: Brightness.dark,
     ).copyWith(primary: accent, onPrimary: Colors.white);
     final base = amoled ? Colors.black : const Color(0xFF121212);
-    final bar = amoled ? Colors.black : const Color(0xFF1F1F1F);
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
@@ -123,7 +122,8 @@ class AppThemeController extends ChangeNotifier {
       cardColor: amoled ? const Color(0xFF0B0B0B) : const Color(0xFF1F1F1F),
       canvasColor: base,
       appBarTheme: AppBarTheme(
-        backgroundColor: bar,
+        // Las barras llevan el color de acento, también en oscuro.
+        backgroundColor: accent,
         foregroundColor: Colors.white,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
