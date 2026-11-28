@@ -38,6 +38,13 @@ versión de la app.
   `AudioService.setPlaylistAndPlay` / `_enterSource`.
 
 ### Corregido
+- **"No se pudo abrir el instalador: MissingPluginException".** Al instalar
+  una actualización desde la app, un teléfono contestó que el plugin
+  `open_filex` no tenía implementación para `open_file`. La causa no se pudo
+  determinar (el plugin sí está dentro del APK y registrado). Ahora la app
+  abre el instalador de Android con su propio canal nativo
+  (`resonar/update`, con un `FileProvider` propio sobre la caché) y solo si
+  eso falla prueba con el plugin.
 - **"Reproducir siguiente" invertía el orden.** Al usarlo en varias canciones,
   cada una se metía delante de la anterior. Ahora quedan en el orden en que se
   eligieron (`playNextSlot`).

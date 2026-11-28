@@ -29,6 +29,16 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 78,
+      title: 'Instalar actualizaciones ya no depende de un solo plugin',
+      fixes: [
+        'Al tocar Instalar, un teléfono mostró "No se pudo abrir el '
+            'instalador: MissingPluginException". Ahora la app abre el '
+            'instalador de Android por su cuenta, y solo si eso falla prueba '
+            'con el plugin de antes.',
+      ],
+    ),
+    ChangelogEntry(
       build: 77,
       title: 'Los videos ya no compiten con la música',
       news: [

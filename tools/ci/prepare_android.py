@@ -121,6 +121,9 @@ def patch_manifest():
     if WIDGET_RECEIVERS.strip().splitlines()[0] not in text:
         extra += WIDGET_RECEIVERS
         changed.append("widgets de pantalla de inicio")
+    if "${applicationId}.updates" not in text:
+        extra += UPDATE_PROVIDER
+        changed.append("provider de actualizaciones")
     if extra:
         if "</application>" not in text:
             print("::warning::No encontré </application>; no se añadió el service.")
@@ -219,6 +222,20 @@ KEEP_XML = (
 )
 
 
+def write_update_resources():
+    """Carpeta que el instalador puede leer: la caché, donde se baja el APK."""
+    xml = os.path.join(ANDROID, "app", "src", "main", "res", "xml")
+    os.makedirs(xml, exist_ok=True)
+    with open(os.path.join(xml, "update_paths.xml"), "w", encoding="utf-8") as f:
+        f.write(
+            '<?xml version="1.0" encoding="utf-8"?>\n'
+            "<paths>\n"
+            '    <cache-path name="update" path="." />\n'
+            "</paths>\n"
+        )
+    print("Recurso de actualizaciones escrito.")
+
+
 def write_notification_resources():
     """Íconos de la notificación (se piden por nombre, así que hay que impedir
     que el compilador los quite como "sin usar")."""
@@ -237,6 +254,18 @@ def write_notification_resources():
 
 
 # ---- widgets de pantalla de inicio -----------------------------------------
+
+# Para entregarle el APK descargado al instalador de Android sin exponer rutas.
+UPDATE_PROVIDER = """        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/update_paths" />
+        </provider>
+"""
 
 WIDGET_RECEIVERS = """        <receiver android:name=".PlayerWidget" android:exported="true">
             <intent-filter>
@@ -264,10 +293,13 @@ import android.content.Intent
 import android.database.ContentObserver
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.core.content.FileProvider
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -357,6 +389,50 @@ class MainActivity : AudioServiceActivity() {
                     else -> result.notImplemented()
                 }
         }
+        // Instalar una actualización. Se hace acá, con un canal propio que se
+        // registra cada vez que arranca la actividad, y no solo con un plugin:
+        // un teléfono contestó que el plugin no tenía implementación.
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, UPDATE_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "installApk" ->
+                        try {
+                            result.success(installApk(call.argument<String>("path") ?: ""))
+                        } catch (error: Throwable) {
+                            result.error("install", error.toString(), null)
+                        }
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /**
+     * Abre el instalador de Android con el APK descargado.
+     *
+     * Devuelve "ok", "permission" (Android todavía no dejó instalar desde esta
+     * app: se abre la pantalla donde se activa) o "missing" (no hay archivo).
+     */
+    private fun installApk(path: String): String {
+        val file = java.io.File(path)
+        if (!file.exists()) return "missing"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:" + packageName),
+                ),
+            )
+            return "permission"
+        }
+        val uri = FileProvider.getUriForFile(this, packageName + ".updates", file)
+        startActivity(
+            Intent(Intent.ACTION_VIEW)
+                .setDataAndType(uri, "application/vnd.android.package-archive")
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+        )
+        return "ok"
     }
 
     /**
@@ -421,6 +497,7 @@ class MainActivity : AudioServiceActivity() {
     companion object {
         const val CHANNEL = "resonar/widget"
         const val AUDIO_CHANNEL = "resonar/audio"
+        const val UPDATE_CHANNEL = "resonar/update"
         const val EXTRA_ACTION = "resonar_action"
         const val PREFS = "resonar_widget"
         const val DEFAULT_ACCENT = -0xaddd4 // 0xFFFF5722
@@ -1263,6 +1340,7 @@ if __name__ == "__main__":
         apply_branding()
     patch_manifest()
     write_notification_resources()
+    write_update_resources()
     write_widget_resources(find_package())
     patch_gradle_dependencies()
     patch_lint()

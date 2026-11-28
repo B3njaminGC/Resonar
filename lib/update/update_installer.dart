@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -101,12 +102,44 @@ class UpdateInstaller {
     }
   }
 
+  static const MethodChannel _channel = MethodChannel('resonar/update');
+
+  /// Lo que contesta el instalador propio de la app, en palabras. `null` si
+  /// salió bien.
+  @visibleForTesting
+  static String? problemForNativeResult(String? code) {
+    switch (code) {
+      case 'ok':
+        return null;
+      case 'permission':
+        return 'Activá "Instalar apps desconocidas" para Resonar y volvé a '
+            'tocar Instalar.';
+      case 'missing':
+        return 'El archivo descargado no sirve.';
+      default:
+        return 'No se pudo abrir el instalador.';
+    }
+  }
+
   /// Abre el instalador del sistema (pide el permiso "instalar apps" la
   /// primera vez). Devuelve null si salió bien, o el motivo del fallo.
+  ///
+  /// Primero lo hace la app con su propio canal nativo. Si eso falla por lo
+  /// que sea, prueba con el plugin `open_filex`: un teléfono contestó que el
+  /// plugin no tenía implementación (`MissingPluginException`), y no se pudo
+  /// saber por qué, así que ahora no se depende de uno solo.
   static Future<String?> install(String path) async {
     final file = File(path);
     if (!await file.exists() || await file.length() < 1024 * 1024) {
       return 'El archivo descargado no sirve.';
+    }
+    try {
+      final code = await _channel.invokeMethod<String>('installApk', {
+        'path': path,
+      });
+      return problemForNativeResult(code);
+    } catch (error) {
+      debugPrint('Instalador propio falló ($error): se prueba con el plugin.');
     }
     try {
       final result = await OpenFilex.open(
