@@ -132,7 +132,7 @@ class _GenreScreenState extends State<GenreScreen> {
                         ),
                         onPressed: files.isEmpty
                             ? null
-                            : () => audio.setPlaylistAndPlay(files, 0),
+                            : () => audio.setPlaylistAndPlay(files, 0, label: _name),
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('Reproducir'),
                       ),
@@ -142,7 +142,7 @@ class _GenreScreenState extends State<GenreScreen> {
                       child: OutlinedButton.icon(
                         onPressed: files.isEmpty
                             ? null
-                            : () => audio.playShuffled(files),
+                            : () => audio.playShuffled(files, label: _name),
                         icon: const Icon(Icons.shuffle),
                         label: const Text('Aleatorio'),
                       ),
@@ -191,7 +191,7 @@ class _GenreScreenState extends State<GenreScreen> {
                       onLongPress: () => selection.toggle(track.path),
                       onTap: selection.active
                           ? () => selection.toggle(track.path)
-                          : () => audio.setPlaylistAndPlay(files, i),
+                          : () => audio.setPlaylistAndPlay(files, i, label: _name),
                     );
                   },
                 ),

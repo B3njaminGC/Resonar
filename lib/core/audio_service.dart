@@ -543,7 +543,7 @@ class AudioService {
     try {
       if (shuffleNotifier.value && _queue.length > 1) {
         // Vuelta completa: recién acá se baraja de nuevo.
-        await setPlaylistAndPlay(
+        await _loadPlaylist(
           List<File>.of(_queue)..shuffle(math.Random()),
           0,
         );
@@ -685,7 +685,7 @@ class AudioService {
           : files.indexWhere((file) => file.path == savedPath);
       final sameTrack = index >= 0;
       if (!sameTrack) index = 0;
-      await setPlaylistAndPlay(
+      await _loadPlaylist(
         files,
         index,
         position: sameTrack
@@ -724,10 +724,89 @@ class AudioService {
 
   // ----------------------------------------------------------------- cola
 
-  /// Reemplaza la cola por [files] y empieza a reproducir `files[initialIndex]`.
+  /// Reproduce [files] desde `files[initialIndex]`, como **su propia cola**.
+  ///
+  /// Cada origen distinto (tu lista, la biblioteca entera, un álbum, una
+  /// selección...) es una cola aparte: lo que había sonando queda guardado con
+  /// su canción y su segundo, y no se reemplaza. Si [files] es la misma lista
+  /// de una cola que ya existe se vuelve a esa cola, y si es la misma de la
+  /// que está sonando se sigue en ella (tocar otra canción de la misma lista
+  /// no crea nada). [label] es el nombre con que se guarda la cola nueva.
+  Future<void> setPlaylistAndPlay(
+    List<File> files,
+    int initialIndex, {
+    String? label,
+  }) async {
+    RangeError.checkValidIndex(initialIndex, files, 'initialIndex');
+    await _enterSource(files, label: label);
+    await _loadPlaylist(files, initialIndex);
+  }
+
+  /// Decide en qué cola cae [files]: la misma, otra que ya existe, o una nueva.
+  Future<void> _enterSource(List<File> files, {String? label}) async {
+    final store = QueueStore.instance;
+    final active = store.byId(store.activeId.value);
+    if (active == null || files.isEmpty) return;
+    final source = fingerprintOf([for (final file in files) file.path]);
+    final names = [for (final queue in store.queues.value) queue.name];
+
+    if (_queue.isEmpty) {
+      // No había nada cargado: esta lista pasa a ser el origen de la cola.
+      store.update(
+        active.copyWith(
+          source: source,
+          name: label != null && isDefaultQueueName(active.name)
+              ? uniqueQueueName(label, names)
+              : null,
+          updatedMs: DateTime.now().millisecondsSinceEpoch,
+        ),
+      );
+      return;
+    }
+    if (active.source == source) return; // la misma lista: la misma cola
+
+    _parkActive();
+    SavedQueue? existing;
+    for (final queue in store.queues.value) {
+      if (queue.source == source && queue.id != active.id) {
+        existing = queue;
+        break;
+      }
+    }
+    if (existing != null) {
+      store.setActive(existing.id);
+      AudioLog.add('cola: vuelve a "${existing.name}"');
+      await _resetShuffleAndLoop(loop: loopModeFromName(existing.loop));
+      return;
+    }
+    if (store.isFull) {
+      // Llegado el tope se saca la que hace más que no se usa.
+      final out = queueToEvict(store.queues.value, active.id);
+      if (out != null) store.remove(out);
+    }
+    final created = store.add(name: label, source: source);
+    store.setActive(created.id);
+    AudioLog.add('cola: nueva "${created.name}"');
+    await _resetShuffleAndLoop(loop: LoopMode.off);
+  }
+
+  /// Deja la mezcla apagada y el bucle en [loop]: son de cada cola, y una cola
+  /// que se arma o se retoma de cero no hereda los de la anterior.
+  Future<void> _resetShuffleAndLoop({required LoopMode loop}) async {
+    shuffleNotifier.value = false;
+    _orderBeforeShuffle = null;
+    loopNotifier.value = loop;
+    await _persistShuffle();
+    await AppSettings.instance.setLoopMode(loop.name);
+    await _player.setLoopMode(loop);
+  }
+
+  /// Reemplaza la cola cargada por [files] y empieza a reproducir
+  /// `files[initialIndex]`. No toca las demás colas: eso lo decide quien la
+  /// llama (ver [setPlaylistAndPlay]).
   ///
   /// Con [autoplay] en `false` solo la deja cargada (pausada) en [position].
-  Future<void> setPlaylistAndPlay(
+  Future<void> _loadPlaylist(
     List<File> files,
     int initialIndex, {
     Duration? position,
@@ -785,12 +864,13 @@ class AudioService {
 
   /// Reproduce [files] en orden aleatorio. La cola se baraja una sola vez y
   /// después queda fija: lo que ves en la cola es lo que va a sonar.
-  Future<void> playShuffled(List<File> files) async {
+  Future<void> playShuffled(List<File> files, {String? label}) async {
     if (files.isEmpty) return;
+    await _enterSource(files, label: label);
     await _player.setShuffleModeEnabled(false);
     shuffleNotifier.value = true;
     _orderBeforeShuffle = List<File>.of(files);
-    await setPlaylistAndPlay(List<File>.of(files)..shuffle(math.Random()), 0);
+    await _loadPlaylist(List<File>.of(files)..shuffle(math.Random()), 0);
     await _persistShuffle();
   }
 
@@ -803,7 +883,7 @@ class AudioService {
   Future<void> _insert(File file, {required bool atEnd}) async {
     final source = _source;
     if (source == null || _queue.isEmpty) {
-      await setPlaylistAndPlay([file], 0);
+      await _loadPlaylist([file], 0);
       return;
     }
     final queueId = _queueId;
@@ -923,6 +1003,7 @@ class AudioService {
       for (final file in _orderBeforeShuffle ?? const <File>[]) file.path,
     ],
     loop: loopNotifier.value.name,
+    updatedMs: DateTime.now().millisecondsSinceEpoch,
   );
 
   /// Vuelca la cola viva a su lugar en [QueueStore], antes de cambiar a otra.
@@ -980,14 +1061,14 @@ class AudioService {
     final position = sameTrack
         ? Duration(milliseconds: saved.positionMs)
         : Duration.zero;
-    await setPlaylistAndPlay(
+    await _loadPlaylist(
       files,
       index,
       position: position,
       autoplay: autoplay,
     );
     await _player.setLoopMode(loop);
-    // `setPlaylistAndPlay` deja la posición en 0 al arrancar y la sesión
+    // `_loadPlaylist` deja la posición en 0 al arrancar y la sesión
     // guardada todavía tiene la de la otra cola: se corrige acá.
     await AppSettings.instance.saveSession(
       queue: [for (final file in files) file.path],
@@ -996,33 +1077,20 @@ class AudioService {
     );
   }
 
-  /// Arranca una cola nueva sin tocar las que ya hay: la actual queda guardada
-  /// y la nueva empieza con [files] (o vacía), sin mezcla y sin bucle.
+  /// Arranca una cola vacía sin tocar las que ya hay (el botón "Nueva").
   ///
-  /// Devuelve `null` si no hizo falta crear nada (la cola actual estaba vacía,
-  /// así que se usa esa) o si ya se llegó al máximo de colas.
-  Future<SavedQueue?> startNewQueue({List<File> files = const []}) async {
+  /// Las demás colas se crean solas al reproducir una lista distinta (ver
+  /// [setPlaylistAndPlay]). Devuelve `null` si no hizo falta crear nada (la
+  /// actual ya estaba vacía) o si ya se llegó al máximo.
+  Future<SavedQueue?> startNewQueue() async {
     final store = QueueStore.instance;
-    if (_queue.isEmpty) {
-      if (files.isNotEmpty) await setPlaylistAndPlay(files, 0);
-      return null;
-    }
-    if (store.isFull) return null;
+    if (_queue.isEmpty || store.isFull) return null;
     _parkActive();
     final queue = store.add();
     store.setActive(queue.id);
-    AudioLog.add('cola: nueva "${queue.name}"');
-    shuffleNotifier.value = false;
-    _orderBeforeShuffle = null;
-    loopNotifier.value = LoopMode.off;
-    await _persistShuffle();
-    await AppSettings.instance.setLoopMode(LoopMode.off.name);
-    await _player.setLoopMode(LoopMode.off);
-    if (files.isEmpty) {
-      await clearQueue();
-    } else {
-      await setPlaylistAndPlay(files, 0);
-    }
+    AudioLog.add('cola: nueva vacía "${queue.name}"');
+    await _resetShuffleAndLoop(loop: LoopMode.off);
+    await clearQueue();
     return queue;
   }
 
@@ -1197,7 +1265,7 @@ class AudioService {
     final index = found < 0 ? 0 : found;
     if (!await _reorderInPlace(next, index)) {
       // Sin nada cargado no hay nada que conservar: se arma de cero.
-      await setPlaylistAndPlay(
+      await _loadPlaylist(
         next,
         index,
         position: _player.position,

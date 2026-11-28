@@ -175,7 +175,7 @@ class TrackGroupScreen extends StatelessWidget {
                     style: FilledButton.styleFrom(
                       backgroundColor: context.accent,
                     ),
-                    onPressed: () => audio.setPlaylistAndPlay(files, 0),
+                    onPressed: () => audio.setPlaylistAndPlay(files, 0, label: group.name),
                     icon: const Icon(Icons.play_arrow),
                     label: const Text('Reproducir'),
                   ),
@@ -183,7 +183,7 @@ class TrackGroupScreen extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => audio.playShuffled(files),
+                    onPressed: () => audio.playShuffled(files, label: group.name),
                     icon: const Icon(Icons.shuffle),
                     label: const Text('Aleatorio'),
                   ),
@@ -206,7 +206,7 @@ class TrackGroupScreen extends StatelessWidget {
                       onLongPress: () => selection.toggle(track.path),
                       onTap: selection.active
                           ? () => selection.toggle(track.path)
-                          : () => audio.setPlaylistAndPlay(files, i),
+                          : () => audio.setPlaylistAndPlay(files, i, label: group.name),
                     );
                   },
                 ),

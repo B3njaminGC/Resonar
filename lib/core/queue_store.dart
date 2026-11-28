@@ -19,6 +19,8 @@ class SavedQueue {
     this.shuffle = false,
     this.orderBeforeShuffle = const [],
     this.loop = 'off',
+    this.source = '',
+    this.updatedMs = 0,
   });
 
   final String id;
@@ -38,6 +40,14 @@ class SavedQueue {
   /// 'off' | 'all' | 'one': el bucle es de cada cola, no global.
   final String loop;
 
+  /// Huella de la lista con que se armó (ver [fingerprintOf]). Sirve para
+  /// reconocer "esta es la misma lista de antes" y volver a su cola en vez de
+  /// armar otra. Vacía si la cola no nació de una lista.
+  final String source;
+
+  /// Cuándo se usó por última vez, para saber cuál sacar si hay demasiadas.
+  final int updatedMs;
+
   SavedQueue copyWith({
     String? name,
     List<String>? paths,
@@ -46,6 +56,8 @@ class SavedQueue {
     bool? shuffle,
     List<String>? orderBeforeShuffle,
     String? loop,
+    String? source,
+    int? updatedMs,
   }) => SavedQueue(
     id: id,
     name: name ?? this.name,
@@ -55,6 +67,8 @@ class SavedQueue {
     shuffle: shuffle ?? this.shuffle,
     orderBeforeShuffle: orderBeforeShuffle ?? this.orderBeforeShuffle,
     loop: loop ?? this.loop,
+    source: source ?? this.source,
+    updatedMs: updatedMs ?? this.updatedMs,
   );
 
   Map<String, Object> toMap() => {
@@ -66,6 +80,8 @@ class SavedQueue {
     'shuffle': shuffle,
     'orderBeforeShuffle': orderBeforeShuffle,
     'loop': loop,
+    'source': source,
+    'updatedMs': updatedMs,
   };
 
   /// Lee una cola guardada. Es tolerante a propósito: si falta un campo o
@@ -89,6 +105,8 @@ class SavedQueue {
       shuffle: raw['shuffle'] == true,
       orderBeforeShuffle: strings(raw['orderBeforeShuffle']),
       loop: raw['loop'] is String ? raw['loop'] as String : 'off',
+      source: raw['source'] is String ? raw['source'] as String : '',
+      updatedMs: number(raw['updatedMs']),
     );
   }
 }
@@ -102,6 +120,52 @@ String nextQueueName(Iterable<String> existing) {
     number++;
   }
   return 'Cola $number';
+}
+
+/// Si [name] es uno de los automáticos ("Cola 3"), o sea que nadie lo eligió.
+bool isDefaultQueueName(String name) => RegExp(r'^Cola \d+$').hasMatch(name);
+
+/// [base] si está libre; si no, "base 2", "base 3"... Así dos selecciones
+/// distintas no quedan con el mismo nombre. Sin [base] cae en "Cola N".
+String uniqueQueueName(String? base, Iterable<String> existing) {
+  final clean = base?.trim() ?? '';
+  if (clean.isEmpty) return nextQueueName(existing);
+  final taken = existing.toSet();
+  if (!taken.contains(clean)) return clean;
+  var number = 2;
+  while (taken.contains('$clean $number')) {
+    number++;
+  }
+  return '$clean $number';
+}
+
+/// Huella de una lista de canciones: cantidad y un hash de las rutas, en
+/// orden. Es FNV-1a escrito a mano y no `hashCode` porque tiene que dar lo
+/// mismo en cada arranque y en cada versión de Dart: se guarda en disco.
+String fingerprintOf(Iterable<String> paths) {
+  var hash = 0x811c9dc5;
+  var count = 0;
+  for (final path in paths) {
+    for (final unit in path.codeUnits) {
+      hash ^= unit;
+      hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    }
+    // Separador: ["ab", "c"] y ["a", "bc"] no son la misma lista.
+    hash = (hash * 0x01000193) & 0xFFFFFFFF;
+    count++;
+  }
+  return '$count:${hash.toRadixString(16)}';
+}
+
+/// La cola que menos se usó, para sacarla cuando ya hay demasiadas. Nunca la
+/// activa. `null` si no hay otra.
+String? queueToEvict(Iterable<SavedQueue> queues, String activeId) {
+  SavedQueue? oldest;
+  for (final queue in queues) {
+    if (queue.id == activeId) continue;
+    if (oldest == null || queue.updatedMs < oldest.updatedMs) oldest = queue;
+  }
+  return oldest?.id;
 }
 
 /// Un identificador que no esté en [existing].
@@ -128,8 +192,8 @@ class QueueStore {
 
   static final QueueStore instance = QueueStore._();
 
-  /// Lo más que se guarda. Al pasarse no se borra nada solo: se avisa en la
-  /// pantalla y es la persona quien decide cuál sacar.
+  /// Lo más que se guarda. Como las colas se crean solas al reproducir cosas
+  /// distintas, al llegar al tope se saca la que hace más que no se usa.
   static const int maxQueues = 12;
 
   final ValueNotifier<List<SavedQueue>> queues = ValueNotifier(const []);
@@ -177,13 +241,13 @@ class QueueStore {
     }
   }
 
-  SavedQueue add({String? name}) {
+  SavedQueue add({String? name, String source = ''}) {
     final names = [for (final queue in queues.value) queue.name];
     final queue = SavedQueue(
       id: newQueueId([for (final queue in queues.value) queue.id]),
-      name: (name == null || name.trim().isEmpty)
-          ? nextQueueName(names)
-          : name.trim(),
+      name: uniqueQueueName(name, names),
+      source: source,
+      updatedMs: DateTime.now().millisecondsSinceEpoch,
     );
     queues.value = [...queues.value, queue];
     _save();

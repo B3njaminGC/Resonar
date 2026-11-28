@@ -29,6 +29,19 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 75,
+      title: 'Cada lista que reproducís es su propia cola',
+      news: [
+        'Las colas ahora se arman solas: tu lista, la biblioteca entera, un '
+            'álbum, una selección... cada origen distinto es una cola aparte, '
+            'y la anterior queda guardada en su canción y su segundo en vez '
+            'de reemplazarse. Se cambia de una a otra desde la pantalla Cola.',
+        'Si reproducís una lista que ya tenía cola, volvés a esa misma cola. '
+            'Tocar otra canción de la lista que ya suena no crea nada nuevo.',
+        'Cuando hay 12 colas, se saca la que hace más que no usás.',
+      ],
+    ),
+    ChangelogEntry(
       build: 74,
       title: 'La música ya no queda baja después de un video',
       fixes: [

@@ -54,7 +54,7 @@ class FavoritesTab extends StatelessWidget {
                   IconButton(
                     tooltip: 'Reproducir al azar',
                     icon: Icon(Icons.shuffle, color: context.accent),
-                    onPressed: () => audio.playShuffled(files),
+                    onPressed: () => audio.playShuffled(files, label: 'Favoritas'),
                   ),
                 ],
               ),
@@ -74,7 +74,7 @@ class FavoritesTab extends StatelessWidget {
                       onLongPress: () => selection.toggle(track.path),
                       onTap: selection.active
                           ? () => selection.toggle(track.path)
-                          : () => audio.setPlaylistAndPlay(files, i),
+                          : () => audio.setPlaylistAndPlay(files, i, label: 'Favoritas'),
                     );
                   },
                 ),

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import '../../../core/audio_service.dart';
-import '../../../core/queue_store.dart';
 import '../../../library/favorites_repository.dart';
 import '../../../library/track_index.dart';
 import '../genre_dialogs.dart';
@@ -115,7 +114,7 @@ class _TrackSelectionScopeState extends State<TrackSelectionScope> {
   }
 }
 
-enum _More { playNext, newQueue, shuffle, favorite, genre, selectAll }
+enum _More { playNext, shuffle, favorite, genre, selectAll }
 
 class _SelectionBar extends StatelessWidget {
   const _SelectionBar({
@@ -142,7 +141,7 @@ class _SelectionBar extends StatelessWidget {
       final files = _files();
       if (files.isEmpty) return;
       selection.clear();
-      await audio.setPlaylistAndPlay(files, 0);
+      await audio.setPlaylistAndPlay(files, 0, label: 'Selección');
     }
 
     Future<void> addToQueue() async {
@@ -184,19 +183,9 @@ class _SelectionBar extends StatelessWidget {
             await audio.playNextInQueue(file);
           }
           say('Sonarán a continuación (${files.length}).');
-        case _More.newQueue:
-          if (files.isEmpty) return;
-          // Con 12 colas no se crea otra: se avisa antes de vaciar la selección.
-          if (QueueStore.instance.isFull && audio.playlistFiles.isNotEmpty) {
-            say('Ya hay ${QueueStore.maxQueues} colas. Borrá alguna.');
-            return;
-          }
-          selection.clear();
-          final queue = await audio.startNewQueue(files: files);
-          if (queue != null) say('Cola nueva: ${queue.name}');
         case _More.shuffle:
           selection.clear();
-          await audio.playShuffled(files);
+          await audio.playShuffled(files, label: 'Selección');
         case _More.favorite:
           final repo = FavoritesRepository.instance;
           var added = 0;
@@ -266,10 +255,6 @@ class _SelectionBar extends StatelessWidget {
                   const PopupMenuItem<Object>(
                     value: _More.playNext,
                     child: Text('Reproducir a continuación'),
-                  ),
-                  const PopupMenuItem<Object>(
-                    value: _More.newQueue,
-                    child: Text('Reproducir en cola nueva'),
                   ),
                   const PopupMenuItem<Object>(
                     value: _More.shuffle,

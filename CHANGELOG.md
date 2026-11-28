@@ -10,14 +10,17 @@ versión de la app.
 ## [No publicado]
 
 ### Añadido
-- **Varias colas de reproducción.** Antes había una sola cola y reproducir
-  otra cosa la reemplazaba. Ahora cada cola es independiente (canciones,
-  canción y segundo en que iba, mezcla y bucle) y se elige a mano en la
-  pantalla *Cola*. Las crea *Reproducir en cola nueva* (selección de
-  canciones) o *Nueva*; mantener apretada una la renombra o la borra. Hasta
-  12. Cambiar de cola guarda la actual y retoma la otra donde estaba, y si
-  tiene bucle repite esa misma cola. Código en `lib/core/queue_store.dart`
-  y `AudioService.switchToQueue`.
+- **Cada lista que reproducís es su propia cola.** Antes había una sola cola
+  y reproducir otra cosa la reemplazaba. Ahora cada origen (tu lista, la
+  biblioteca, un álbum, una selección, la búsqueda...) es una cola
+  independiente, con sus canciones, la canción y el segundo en que iba, su
+  mezcla y su bucle. Se arman solas al reproducir algo distinto y se elige
+  entre ellas a mano en la pantalla *Cola*; mantener apretada una la renombra
+  o la borra. Reproducir una lista que ya tiene cola vuelve a esa cola; tocar
+  otra canción de la lista que ya suena no crea nada. Con 12 colas se saca la
+  menos usada. Una lista se reconoce por una huella de sus rutas
+  (`fingerprintOf`). Código en `lib/core/queue_store.dart` y
+  `AudioService.setPlaylistAndPlay` / `_enterSource`.
 
 ### Corregido
 - **La música podía quedar al 15 % para siempre después de un video.** Si una

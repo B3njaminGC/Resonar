@@ -104,7 +104,7 @@ class WidgetBridge {
             if (favorites.contains(track.path)) track.file,
         ];
         if (files.isEmpty) return null;
-        await audio.playShuffled(files);
+        await audio.playShuffled(files, label: 'Favoritas');
         return 2;
       case 'search':
         return 1;
@@ -116,7 +116,7 @@ class WidgetBridge {
   static Future<int?> _shuffleAll(AudioService audio) async {
     final files = [for (final track in TrackIndex.instance.tracks) track.file];
     if (files.isEmpty) return null;
-    await audio.playShuffled(files);
+    await audio.playShuffled(files, label: 'Biblioteca');
     return 2;
   }
 }

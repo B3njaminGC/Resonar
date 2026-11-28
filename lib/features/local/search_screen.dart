@@ -147,6 +147,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       onTap: () => _audio.setPlaylistAndPlay(
                         [for (final track in _results) track.file],
                         i,
+                        label: 'Búsqueda',
                       ),
                     ),
                   ),

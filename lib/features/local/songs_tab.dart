@@ -57,7 +57,7 @@ class _SongsTabState extends State<SongsTab> {
                   IconButton(
                     tooltip: 'Reproducir al azar',
                     icon: Icon(Icons.shuffle, color: context.accent),
-                    onPressed: () => _audio.playShuffled(files),
+                    onPressed: () => _audio.playShuffled(files, label: 'Biblioteca'),
                   ),
                   PopupMenuButton<SongSort>(
                     tooltip: 'Ordenar',
@@ -90,7 +90,11 @@ class _SongsTabState extends State<SongsTab> {
                       onLongPress: () => selection.toggle(track.path),
                       onTap: selection.active
                           ? () => selection.toggle(track.path)
-                          : () => _audio.setPlaylistAndPlay(files, index),
+                          : () => _audio.setPlaylistAndPlay(
+                    files,
+                    index,
+                    label: 'Biblioteca',
+                  ),
                     );
                   },
                 ),

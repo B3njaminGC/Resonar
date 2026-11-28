@@ -200,7 +200,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             IconButton(
               tooltip: 'Reproducir al azar',
               icon: const Icon(Icons.shuffle),
-              onPressed: () => _audioService.playShuffled(songs),
+              onPressed: () => _audioService.playShuffled(songs, label: _name),
             ),
           if (songs.isNotEmpty)
             IconButton(
@@ -327,7 +327,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                       onTap: selection.active
                           ? () => selection.toggle(file.path)
                           : () =>
-                                _audioService.setPlaylistAndPlay(songs, index),
+                                _audioService.setPlaylistAndPlay(
+                                  songs,
+                                  index,
+                                  label: _name,
+                                ),
                     ),
                   );
                 },
